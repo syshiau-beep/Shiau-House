@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>魔法密室逃脫——笛卡兒的寶藏</title>
+    <style>
+        :root {
+            --bg-color: #1a0b2e;
+            --panel-bg: #2d1b4e;
+            --text-main: #e2e8f0;
+            --gold: #ffd700;
+            --gold-hover: #ffea70;
+            --error: #ff4d4d;
+            --success: #00e676;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 50% 0%, #3b1f63 0%, #1a0b2e 70%);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            color: var(--gold);
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+            margin-bottom: 5px;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: #a78bfa;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+            text-align: center;
+        }
+
+        #game-board {
+            background-color: var(--panel-bg);
+            border: 2px solid #5b3fa8;
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(91, 63, 168, 0.4), inset 0 0 20px rgba(0,0,0,0.5);
+            padding: 30px;
+            max-width: 600px;
+            width: 100%;
+            position: relative;
+        }
+
+        #level-title {
+            color: var(--gold);
+            font-size: 1.4em;
+            border-bottom: 1px solid #5b3fa8;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+
+        #story-text {
+            font-size: 1.1em;
+            line-height: 1.6;
+            margin: 20px 0;
+            color: #ddd;
+        }
+
+        /* 輸入區塊樣式 */
+        #input-area {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.2em;
+        }
+
+        input[type="number"], input[type="text"] {
+            background-color: #1a0b2e;
+            border: 1px solid #5b3fa8;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 1em;
+            width: 80px;
+            text-align: center;
+            outline: none;
+        }
+        
+        input:focus {
+            border-color: var(--gold);
+            box-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
+        }
+
+        /* 按鈕樣式 */
+        .choice-btn {
+            background-color: #3b1f63;
+            color: white;
+            border: 1px solid #5b3fa8;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 1.1em;
+            cursor: pointer;
+            width: 80%;
+            transition: all 0.2s;
+        }
+
+        .choice-btn:hover {
+            background-color: #5b3fa8;
+            transform: translateY(-2px);
+        }
+
+        .action-btn {
+            background-color: var(--gold);
+            color: #1a0b2e;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .action-btn:hover {
+            background-color: var(--gold-hover);
+            transform: scale(1.05);
+        }
+
+        .action-btn:disabled {
+            background-color: #666;
+            color: #999;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* 系統回饋訊息 */
+        #feedback {
+            font-size: 1.1em;
+            font-weight: bold;
+            min-height: 30px;
+            margin-top: 15px;
+            text-align: center;
+            padding: 10px;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .feedback-correct {
+            display: block !important;
+            background-color: rgba(0, 230, 118, 0.1);
+            color: var(--success);
+            border: 1px solid var(--success);
+        }
+
+        .feedback-wrong {
+            display: block !important;
+            background-color: rgba(255, 77, 77, 0.1);
+            color: var(--error);
+            border: 1px solid var(--error);
+        }
+
+        .explanation {
+            font-size: 0.9em;
+            font-weight: normal;
+            color: #aaa;
+            margin-top: 5px;
+        }
+
+        /* 破關畫面 */
+        #victory-screen {
+            display: none;
+            text-align: center;
+        }
+        #victory-screen h2 {
+            color: var(--gold);
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        .treasure-icon {
+            font-size: 4em;
+            margin: 20px 0;
+            animation: float 2s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+            100% { transform: translateY(0px); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>✨ 魔法密室逃脫</h1>
+    <div class="subtitle">—— 笛卡兒的寶藏 ——</div>
+
+    <div id="game-board">
+        <div id="game-content">
+            <h2 id="level-title">讀取中...</h2>
+            <div id="story-text"></div>
+            
+            <div id="input-area">
+                </div>
+
+            <div style="text-align: center;">
+                <button id="submit-btn" class="action-btn" onclick="checkAnswer()">施展魔法 (確認答案)</button>
+            </div>
+
+            <div id="feedback"></div>
+
+            <div style="text-align: center; margin-top: 15px;">
+                <button id="next-btn" class="action-btn" style="display: none;" onclick="nextLevel()">前往下一關 ➔</button>
+            </div>
+        </div>
+
+        <div id="victory-screen">
+            <h2>🎉 封印解除！</h2>
+            <div class="treasure-icon">💎👑📜</div>
+            <p style="font-size: 1.2em; line-height: 1.6;">
+                恭喜你！你展現了卓越的幾何與代數推理能力，<br>
+                成功解開了笛卡兒留下的所有謎題，獲得了傳說中的數學寶藏！
+            </p>
+            <button class="action-btn" style="margin-top: 20px;" onclick="location.reload()">再玩一次</button>
+        </div>
+    </div>
+
+    <script>
+        // 關卡資料設定
+        const levels = [
+            {
+                title: "第 1 關：護城河的考驗",
+                story: "你來到了古堡外，目前站在坐標 <b>Q(3, -2)</b> 的位置。<br>要放下護城河的吊橋，必須分別輸入你到 x 軸與 y 軸的「距離」。(提示：距離必定為正數)",
+                type: "inputs",
+                inputs: [
+                    { id: "ans-x", label: "到 x 軸的距離：" },
+                    { id: "ans-y", label: "到 y 軸的距離：" }
+                ],
+                validate: () => {
+                    const x = document.getElementById('ans-x').value;
+                    const y = document.getElementById('ans-y').value;
+                    return x === "2" && y === "3";
+                },
+                explanation: "點到 x 軸的距離是 y 坐標的絕對值 |-2| = 2；<br>到 y 軸的距離是 x 坐標的絕對值 |3| = 3。"
+            },
+            {
+                title: "第 2 關：隱形的安全石板",
+                story: "進入密室後，地板布滿了帶有坐標的魔法石板。<br>古卷記載：「只有位在<b>坐標軸上</b>的石板才是安全的。」<br>請選擇一塊安全的石板踏上去：",
+                type: "choices",
+                choices: [
+                    "A(2, 3)",
+                    "B(-4, -1)",
+                    "C(0, -5)",
+                    "D(1, -1)"
+                ],
+                correctChoice: 2, // 索引值，代表 C(0, -5)
+                explanation: "x 軸上的點 y 坐標為 0，y 軸上的點 x 坐標為 0。<br>C(0, -5) 的 x 坐標為 0，因此它位在 y 軸上。"
+            },
+            {
+                title: "第 3 關：時光倒流魔法",
+                story: "糟糕，寶箱被怪物搬走了！地上留下的魔法痕跡顯示：<br>「從原藏寶點 <b>向右走 2 單位，再向下走 4 單位</b>，最後停在 <b>B(3, -2)</b>。」<br>請運用反向推導找出原藏寶點 A 的坐標：",
+                type: "inputs",
+                inputs: [
+                    { id: "ans-x", label: "A 的 x 坐標：" },
+                    { id: "ans-y", label: "A 的 y 坐標：" }
+                ],
+                validate: () => {
+                    const x = document.getElementById('ans-x').value;
+                    const y = document.getElementById('ans-y').value;
+                    return x === "1" && y === "2";
+                },
+                explanation: "反向推導：從 B(3,-2)「向左走 2」得 x = 3-2 = 1；<br>「向上走 4」得 y = -2+4 = 2。原坐標為 A(1, 2)。"
+            },
+            {
+                title: "第 4 關：變形精靈的謎語",
+                story: "一隻精靈擋住了去路，說道：<br>「已知點 <b>P(a, b) 在第四象限</b>，請告訴我通往終極密室的鑰匙 <b>D(ab, ba)</b> 藏在哪個象限？」",
+                type: "choices",
+                choices: [
+                    "第一象限",
+                    "第二象限",
+                    "第三象限",
+                    "第四象限"
+                ],
+                correctChoice: 2, // 索引值，第三象限
+                explanation: "P(a,b) 在第四象限，所以 a為正(+), b為負(-)。<br>a×b = 正×負 = 負(-)；b×a = 負×正 = 負(-)。<br>D(-, -) 因此位於第三象限。"
+            },
+            {
+                title: "第 5 關：終極聖物封印",
+                story: "你來到了終極寶箱前。密碼鎖上刻著複合條件：<br>「此點位在<b>第二象限</b>，<br>到 x 軸距離是 <b>3</b>，<br>到 y 軸距離是 <b>5</b>。」<br>請輸入解鎖的確切坐標 (x, y)：",
+                type: "inputs",
+                inputs: [
+                    { id: "ans-x", label: "x 坐標：" },
+                    { id: "ans-y", label: "y 坐標：" }
+                ],
+                validate: () => {
+                    const x = document.getElementById('ans-x').value;
+                    const y = document.getElementById('ans-y').value;
+                    return x === "-5" && y === "3";
+                },
+                explanation: "第二象限的符號為 (-, +)。<br>到 y 軸距離為 5，所以 x = -5；<br>到 x 軸距離為 3，所以 y = 3。答案為 (-5, 3)。"
+            }
+        ];
+
+        let currentLevel = 0;
+        let selectedChoice = null; // 用於選擇題記錄使用者選擇
+
+        // DOM 元素
+        const titleEl = document.getElementById('level-title');
+        const storyEl = document.getElementById('story-text');
+        const inputAreaEl = document.getElementById('input-area');
+        const submitBtn = document.getElementById('submit-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const feedbackEl = document.getElementById('feedback');
+
+        // 載入關卡
+        function loadLevel(index) {
+            const levelData = levels[index];
+            titleEl.innerHTML = levelData.title;
+            storyEl.innerHTML = levelData.story;
+            
+            // 重置 UI
+            feedbackEl.className = '';
+            feedbackEl.innerHTML = '';
+            nextBtn.style.display = 'none';
+            submitBtn.style.display = 'inline-block';
+            submitBtn.disabled = false;
+            selectedChoice = null;
+
+            // 根據關卡類型渲染輸入區
+            inputAreaEl.innerHTML = '';
+            if (levelData.type === 'inputs') {
+                levelData.inputs.forEach(input => {
+                    const div = document.createElement('div');
+                    div.className = 'input-group';
+                    div.innerHTML = `
+                        <label for="${input.id}">${input.label}</label>
+                        <input type="number" id="${input.id}" placeholder="?">
+                    `;
+                    inputAreaEl.appendChild(div);
+                });
+            } else if (levelData.type === 'choices') {
+                levelData.choices.forEach((choiceText, i) => {
+                    const btn = document.createElement('button');
+                    btn.className = 'choice-btn';
+                    btn.innerText = choiceText;
+                    btn.onclick = () => selectChoice(btn, i);
+                    inputAreaEl.appendChild(btn);
+                });
+                submitBtn.style.display = 'none'; // 選擇題不需額外確認按鈕
+            }
+        }
+
+        // 選擇題點擊處理
+        function selectChoice(btnElement, index) {
+            // 如果已經答對並顯示下一關，就不允許再點擊
+            if (nextBtn.style.display === 'inline-block') return;
+
+            // 移除其他按鈕的高亮
+            const btns = inputAreaEl.querySelectorAll('.choice-btn');
+            btns.forEach(b => b.style.border = '1px solid #5b3fa8');
+            
+            // 標示當前選擇
+            btnElement.style.border = '2px solid var(--gold)';
+            selectedChoice = index;
+            
+            // 直接檢查答案
+            checkAnswer();
+        }
+
+        // 檢查答案邏輯
+        function checkAnswer() {
+            const levelData = levels[currentLevel];
+            let isCorrect = false;
+
+            if (levelData.type === 'inputs') {
+                // 檢查是否有填寫
+                let allFilled = true;
+                levelData.inputs.forEach(input => {
+                    if (document.getElementById(input.id).value === "") allFilled = false;
+                });
+                
+                if (!allFilled) {
+                    showFeedback(false, "魔法陣缺乏能量！請填寫所有空格。");
+                    return;
+                }
+                isCorrect = levelData.validate();
+
+            } else if (levelData.type === 'choices') {
+                if (selectedChoice === null) return;
+                isCorrect = (selectedChoice === levelData.correctChoice);
+            }
+
+            // 顯示結果
+            if (isCorrect) {
+                showFeedback(true, `✅ 咒語正確！<br><div class="explanation">${levelData.explanation}</div>`);
+                submitBtn.disabled = true;
+                nextBtn.style.display = 'inline-block';
+                
+                // 如果是填空題，答對後鎖定輸入框
+                if(levelData.type === 'inputs') {
+                    levelData.inputs.forEach(input => {
+                        document.getElementById(input.id).disabled = true;
+                    });
+                }
+            } else {
+                showFeedback(false, "❌ 咒語失效！請重新思考看看。");
+            }
+        }
+
+        // 顯示回饋訊息
+        function showFeedback(isSuccess, message) {
+            feedbackEl.innerHTML = message;
+            if (isSuccess) {
+                feedbackEl.className = 'feedback-correct';
+            } else {
+                feedbackEl.className = 'feedback-wrong';
+                // 簡單的震動動畫提示錯誤
+                feedbackEl.style.transform = "translateX(-10px)";
+                setTimeout(() => feedbackEl.style.transform = "translateX(10px)", 100);
+                setTimeout(() => feedbackEl.style.transform = "translateX(0)", 200);
+            }
+        }
+
+        // 進入下一關
+        function nextLevel() {
+            currentLevel++;
+            if (currentLevel < levels.length) {
+                loadLevel(currentLevel);
+            } else {
+                // 破關
+                document.getElementById('game-content').style.display = 'none';
+                document.getElementById('victory-screen').style.display = 'block';
+            }
+        }
+
+        // 遊戲初始化
+        window.onload = () => {
+            loadLevel(0);
+        };
+    </script>
+</body>
+</html>
