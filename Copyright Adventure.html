@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>著作權數位法庭：隨機挑戰版</title>
+    <style>
+        :root { --p: #3498db; --s: #2ecc71; --d: #e74c3c; --bg: #f4f7f9; }
+        body { font-family: "Microsoft JhengHei", sans-serif; background: var(--bg); display: flex; justify-content: center; padding: 20px; }
+        .container { width: 100%; max-width: 800px; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .timer { font-size: 1.2rem; color: var(--d); font-weight: bold; text-align: right; margin-bottom: 10px; }
+        .q-text { font-size: 1.2rem; margin-bottom: 20px; padding: 15px; background: #eef2f7; border-left: 5px solid var(--p); line-height: 1.6; }
+        .options { display: grid; gap: 10px; }
+        .opt { padding: 15px; border: 2px solid #ddd; border-radius: 8px; cursor: pointer; transition: 0.3s; text-align: left; background: white; font-size: 1.1rem; }
+        .opt:hover { border-color: var(--p); background: #f0faff; }
+        .correct { background: var(--s) !important; color: white; border-color: var(--s) !important; }
+        .wrong { background: var(--d) !important; color: white; border-color: var(--d) !important; }
+        .summary-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.95rem; }
+        .summary-table th, .summary-table td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        .summary-table th { background: #f8f9fa; }
+        .btn { background: var(--p); color: white; padding: 12px 25px; border: none; border-radius: 5px; cursor: pointer; margin-top: 20px; font-size: 1rem; }
+        .btn:hover { background: #2980b9; }
+        #quiz-screen, #result-screen { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="start-screen">
+        <h1>⚖️ 著作權數位法庭：隨機挑戰賽</h1>
+        <p>每次挑戰題序與選項皆會隨機改變，測試你是否真的理解教材內容！ </p>
+        <button class="btn" onclick="startGame()">開始測驗</button>
+    </div>
+
+    <div id="quiz-screen">
+        <div class="timer" id="timer">剩餘時間 05:00</div>
+        <div id="q-num" style="font-weight:bold; color:var(--p); margin-bottom: 5px;"></div>
+        <div id="q-content" class="q-text"></div>
+        <div id="options" class="options"></div>
+        <button id="next-btn" class="btn" style="display:none; float:right;" onclick="nextQuestion()">下一題</button>
+    </div>
+
+    <div id="result-screen">
+        <h2 style="color:var(--p);">🎉 測驗結束！</h2>
+        <h3>您的總分：<span id="score-display" style="font-size: 2rem; color:var(--s);"></span> / 10</h3>
+        <table class="summary-table">
+            <thead>
+                <tr>
+                    <th width="10%">題號</th>
+                    <th width="10%">結果</th>
+                    <th>法律要點解析</th>
+                </tr>
+            </thead>
+            <tbody id="summary-body"></tbody>
+        </table>
+        <button class="btn" onclick="resetGame()">重新挑戰（隨機出題）</button>
+    </div>
+</div>
+
+<script>
+    // 原始題庫資料 [cite: 4, 5, 6, 9, 10, 11, 15, 20, 22, 33, 40]
+    const masterQuestions = [
+        { q: "我國著作權法規定，著作權何時開始受法律保護？", o: ["著作完成時自動取得", "向政府註冊登記後", "作品公開發表並賣出後"], c: "著作完成時自動取得", h: "著作人於著作完成時就受到保護，不需註冊或登記。[cite: 5]" },
+        { q: "關於著作人格權的特性，下列何者正確？", o: ["專屬於本人，不得讓與或繼承", "可以授權他人使用換取利益", "可以由子孫繼承其名義"], c: "專屬於本人，不得讓與或繼承", h: "著作人格權專屬於著作人本身，不得讓與或繼承。[cite: 6]" },
+        { q: "一般著作財產權的保護期間通常為何？", o: ["生存期間到死後 50 年", "自著作公開發表起 20 年", "死後自動失效"], c: "生存期間到死後 50 年", h: "保護期間為著作人生存期間到死後 50 年，或發表後 50 年。[cite: 5]" },
+        { q: "將小說翻譯、編曲或改寫所得的作品稱之為？", o: ["衍生著作", "原始著作", "錄音著作"], c: "衍生著作", h: "把既有著作改作所得作品稱為衍生（改作）著作，獨立受保護。[cite: 29]" },
+        { q: "生成式 AI 生成之內容是否受保護，關鍵在於有無？", o: ["人類精神創作", "強大的運算模型", "付費授權合約"], c: "人類精神創作", h: "視有無「人類精神創作」決定是否受著作權法保護。" },
+        { q: "未經授權將他人著作放入 AI 模型訓練，可能侵害何種權利？", o: ["重製權", "公開展示權", "姓名表示權"], c: "重製權", h: "訓練 AI 模型可能侵害著作財產權人的「重製權」。[cite: 10]" },
+        { q: "地圖、圖表、科技或工程設計圖，屬於哪一類著作？", o: ["圖形著作", "美術著作", "語文著作"], c: "圖形著作", h: "地圖、圖表、工程設計圖屬於圖形著作範疇。[cite: 22]" },
+        { q: "電影、錄影、碟影等呈現系列影像的作品，稱為？", o: ["視聽著作", "攝影著作", "錄音著作"], c: "視聽著作", h: "電腦螢幕顯示之系列影像不論有無聲音皆屬視聽著作。[cite: 33]" },
+        { q: "電腦程式著作的定義為何？", o: ["使電腦產生一定結果之指令組合", "電腦的硬體零件組合", "網路上的新聞文章"], c: "使電腦產生一定結果之指令組合", h: "直接或間接使電腦產生一定結果之指令組合稱電腦程式著作。[cite: 40]" },
+        { q: "著作財產權的主要目的是什麼？", o: ["獲取經濟利益", "保護著作人的聲譽", "限制社會公眾使用"], c: "獲取經濟利益", h: "透過讓與或授權，使著作人獲得經濟利益，成為財產的一部分。[cite: 6]" }
+    ];
+
+    let currentQuestions = [];
+    let current = 0, score = 0, timer, timeLeft = 300, userAnswers = [];
+
+    // 洗牌演算法 (Fisher-Yates Shuffle)
+    function shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+
+    function startGame() {
+        document.getElementById('start-screen').style.display = 'none';
+        document.getElementById('result-screen').style.display = 'none';
+        document.getElementById('quiz-screen').style.display = 'block';
+        
+        // 1. 隨機排列題目順序
+        currentQuestions = shuffle([...masterQuestions]);
+        
+        // 2. 隨機排列每一題的選項順序
+        currentQuestions.forEach(item => {
+            item.o = shuffle([...item.o]);
+        });
+
+        current = 0; score = 0; userAnswers = []; timeLeft = 300;
+        loadQuestion();
+        if(timer) clearInterval(timer);
+        timer = setInterval(updateTimer, 1000);
+    }
+
+    function resetGame() {
+        startGame();
+    }
+
+    function updateTimer() {
+        timeLeft--;
+        let m = Math.floor(timeLeft/60), s = timeLeft%60;
+        document.getElementById('timer').innerText = `剩餘時間 ${m}:${s<10?'0':''}${s}`;
+        if(timeLeft <= 0) endGame();
+    }
+
+    function loadQuestion() {
+        const q = currentQuestions[current];
+        document.getElementById('q-num').innerText = `題目 ${current+1} / 10`;
+        document.getElementById('q-content').innerText = q.q;
+        const optDiv = document.getElementById('options');
+        optDiv.innerHTML = '';
+        
+        q.o.forEach((opt) => {
+            const btn = document.createElement('button');
+            btn.className = 'opt';
+            btn.innerText = opt;
+            btn.onclick = () => checkAns(opt, btn);
+            optDiv.appendChild(btn);
+        });
+        document.getElementById('next-btn').style.display = 'none';
+    }
+
+    function checkAns(selectedText, btn) {
+        const q = currentQuestions[current];
+        const opts = document.querySelectorAll('.opt');
+        opts.forEach(b => b.onclick = null);
+        
+        const isCorrect = (selectedText === q.c);
+        if(isCorrect) {
+            btn.classList.add('correct');
+            score++;
+        } else {
+            btn.classList.add('wrong');
+            // 找出正確答案的按鈕並標綠
+            opts.forEach(b => { if(b.innerText === q.c) b.classList.add('correct'); });
+        }
+        
+        userAnswers.push({ res: isCorrect ? '✅' : '❌', hint: q.h });
+        document.getElementById('next-btn').style.display = 'block';
+    }
+
+    function nextQuestion() {
+        current++;
+        if(current < currentQuestions.length) loadQuestion();
+        else endGame();
+    }
+
+    function endGame() {
+        clearInterval(timer);
+        alert("📢 測驗結束！");
+        document.getElementById('quiz-screen').style.display = 'none';
+        document.getElementById('result-screen').style.display = 'block';
+        document.getElementById('score-display').innerText = score;
+        
+        const body = document.getElementById('summary-body');
+        body.innerHTML = ""; 
+        userAnswers.forEach((a, i) => {
+            body.innerHTML += `<tr><td>${i+1}</td><td style="text-align:center;">${a.res}</td><td>${a.hint}</td></tr>`;
+        });
+    }
+</script>
+</body>
+</html>

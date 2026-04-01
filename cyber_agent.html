@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>城市特務——賽博龐克追緝令</title>
+    <style>
+        body { background-color: #0d0221; color: #00f0ff; font-family: '微軟正黑體', 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        h1 { color: #ff003c; letter-spacing: 2px; text-shadow: 2px 2px 0px #00f0ff; }
+        #terminal { background: rgba(13, 2, 33, 0.9); border: 2px solid #00f0ff; box-shadow: 0 0 15px #00f0ff, inset 0 0 15px #00f0ff; width: 500px; padding: 30px; border-radius: 8px; position: relative; overflow: hidden; }
+        #terminal::after { content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06)); z-index: 2; background-size: 100% 2px, 3px 100%; pointer-events: none; }
+        .header { display: flex; justify-content: space-between; border-bottom: 2px solid #ff003c; padding-bottom: 10px; margin-bottom: 20px; font-weight: bold; font-size: 1.2em; }
+        #question-box { font-size: 1.2em; line-height: 1.6; color: #fff; margin-bottom: 20px; min-height: 80px; }
+        .highlight { color: #ffeb3b; font-weight: bold; }
+        .input-area { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; position: relative; z-index: 5; }
+        input { background: transparent; border: 1px solid #00f0ff; color: #ffeb3b; padding: 10px; font-size: 1.2em; width: 60px; text-align: center; outline: none; }
+        input:focus { box-shadow: 0 0 10px #00f0ff; }
+        button { background: #00f0ff; color: #0d0221; border: none; padding: 10px 20px; font-size: 1.1em; font-weight: bold; cursor: pointer; transition: 0.2s; border-radius: 4px; }
+        button:hover { background: #ff003c; color: #fff; box-shadow: 0 0 10px #ff003c; }
+        #msg { text-align: center; font-size: 1.3em; margin-top: 20px; font-weight: bold; min-height: 30px; }
+        .grid-btn { background: transparent; border: 1px solid #00f0ff; color: #00f0ff; }
+        .grid-btn:hover { background: #00f0ff; color: #0d0221; }
+    </style>
+</head>
+<body>
+    <h1>城市特務——賽博龐克追緝令</h1>
+    <div id="terminal">
+        <div class="header">
+            <span id="lvl">任務 01</span>
+            <span id="prg">檔案 1/5</span>
+            <span id="pts">積分: 0</span>
+        </div>
+        <div id="question-box"></div>
+        <div class="input-area" id="inputs"></div>
+        <div id="msg"></div>
+        <div style="text-align: center; margin-top: 15px; position: relative; z-index: 5;">
+            <button id="nxt" style="display:none;" onclick="next()">>> 繼續</button>
+        </div>
+    </div>
+
+    <script>
+        let lvl = 1, q = 1, pts = 0, isAns = false;
+        let ansData = null;
+
+        function rand(min, max, excl=[]) { let n; do { n = Math.floor(Math.random()*(max-min+1))+min; } while(excl.includes(n)); return n; }
+
+        function loadQ() {
+            isAns = false;
+            document.getElementById('lvl').innerText = `任務 0${lvl}`;
+            document.getElementById('prg').innerText = `檔案 ${q}/5`;
+            document.getElementById('msg').innerText = '';
+            document.getElementById('nxt').style.display = 'none';
+            let qb = document.getElementById('question-box');
+            let ia = document.getElementById('inputs');
+
+            if (lvl === 1) { // 點特徵 (擴充為 5 種變化)
+                let type = rand(1, 5);
+                if(type === 1) {
+                    qb.innerHTML = `攔截到加密坐標 <span class="highlight">P(a, 0)</span>。<br>特務必定藏身在城市的哪一條主幹道上？`;
+                    ansData = "X軸";
+                } else if (type === 2) {
+                    qb.innerHTML = `攔截到加密坐標 <span class="highlight">Q(0, b)</span>。<br>特務必定藏身在城市的哪一條主幹道上？`;
+                    ansData = "Y軸";
+                } else if (type === 3) {
+                    let num = rand(-9, 9, [0]); // 隨機產生不為 0 的數字
+                    qb.innerHTML = `無人機拍到特務出現在 <span class="highlight">(${num}, 0)</span>。<br>這是在哪一條主幹道上？`;
+                    ansData = "X軸";
+                } else if (type === 4) {
+                    let num = rand(-9, 9, [0]);
+                    qb.innerHTML = `無人機拍到特務出現在 <span class="highlight">(0, ${num})</span>。<br>這是在哪一條主幹道上？`;
+                    ansData = "Y軸";
+                } else {
+                    qb.innerHTML = `強烈訊號顯示特務位於 <span class="highlight">(0, 0)</span>。<br>這代表他藏身於何處？`;
+                    ansData = "原點";
+                }
+                ia.innerHTML = `<button class="grid-btn" onclick="check('X軸')">X 軸</button> <button class="grid-btn" onclick="check('Y軸')">Y 軸</button> <button class="grid-btn" onclick="check('原點')">原點</button>`;
+            }
+            else if (lvl === 2) { // 未知數象限
+                let a = rand(0,1)>0?'>':'<', b = rand(0,1)>0?'>':'<';
+                let quad = "";
+                if(a==='>' && b==='>') quad = "第一象限"; else if(a==='<' && b==='>') quad = "第二象限";
+                else if(a==='<' && b==='<') quad = "第三象限"; else quad = "第四象限";
+                
+                qb.innerHTML = `線人回報：已知變數 <span class="highlight">x ${a} 0</span> 且 <span class="highlight">y ${b} 0</span>。<br>目標地點 <span class="highlight">T(x, y)</span> 位於哪個特區(象限)？`;
+                ansData = quad;
+                ia.innerHTML = ['第一象限','第二象限','第三象限','第四象限'].map(x => `<button class="grid-btn" onclick="check('${x}')">${x}</button>`).join('');
+            }
+            else if (lvl === 3) { // 距離絕對值
+                let tx = rand(-9,9,[0]), ty = rand(-9,9,[0]);
+                let askX = rand(0,1)>0; // true 問 x軸, false 問 y軸
+                qb.innerHTML = `特務正位於 <span class="highlight">(${tx}, ${ty})</span>。<br>請計算他距離 <span class="highlight">${askX ? 'X軸 (橫向大道)' : 'Y軸 (縱向大道)'}</span> 有多少單位的距離？`;
+                ansData = askX ? Math.abs(ty) : Math.abs(tx);
+                ia.innerHTML = `距離: <input id="val" type="number"> <button onclick="check(document.getElementById('val').value)">解碼</button>`;
+            }
+            else if (lvl === 4) { // 反推平移
+                let sx = rand(-5,5), sy = rand(-5,5); // 答案起點
+                let dx = rand(-4,4,[0]), dy = rand(-4,4,[0]);
+                let ex = sx+dx, ey = sy+dy; // 終點
+                let dxS = dx>0 ? `向右逃竄 ${dx}` : `向左逃竄 ${Math.abs(dx)}`;
+                let dyS = dy>0 ? `向上逃竄 ${dy}` : `向下逃竄 ${Math.abs(dy)}`;
+                
+                qb.innerHTML = `目標 ${dxS} 單位，再 ${dyS} 單位後，<br>最後消失在 <span class="highlight">(${ex}, ${ey})</span>。<br>請「反向推導」出他的起始坐標。`;
+                ansData = {x: sx, y: sy};
+                ia.innerHTML = `X: <input id="vx" type="number"> Y: <input id="vy" type="number"> <button onclick="checkObj()">鎖定</button>`;
+            }
+            else if (lvl === 5) { // 綜合條件
+                let qd = rand(1,4);
+                let dx = rand(2,8), dy = rand(2,8); // dx是距y軸, dy是距x軸
+                let ax, ay;
+                let qName = "";
+                if(qd===1){ ax=dx; ay=dy; qName="第一象限"; }
+                if(qd===2){ ax=-dx; ay=dy; qName="第二象限"; }
+                if(qd===3){ ax=-dx; ay=-dy; qName="第三象限"; }
+                if(qd===4){ ax=dx; ay=-dy; qName="第四象限"; }
+                
+                qb.innerHTML = `【終極密碼】特務藏身點符合：<br>1. 位於 <span class="highlight">${qName}</span><br>2. 距離 X 軸 <span class="highlight">${dy}</span> 單位<br>3. 距離 Y 軸 <span class="highlight">${dx}</span> 單位<br>請輸入確切坐標。`;
+                ansData = {x: ax, y: ay};
+                ia.innerHTML = `X: <input id="vx" type="number"> Y: <input id="vy" type="number"> <button onclick="checkObj()">逮捕</button>`;
+            }
+        }
+
+        function show(isWin, text) {
+            isAns = true;
+            let m = document.getElementById('msg');
+            m.innerHTML = isWin ? `<span style="color:#00f0ff">[成功] ${text}</span>` : `<span style="color:#ff003c">[失敗] ${text}</span>`;
+            if(isWin) { pts+=20; document.getElementById('pts').innerText = `積分: ${pts}`; }
+            document.getElementById('nxt').style.display = 'inline-block';
+            document.getElementById('nxt').innerText = (lvl===5&&q===5) ? ">> 任務完成" : ">> 下一個檔案";
+        }
+
+        function check(val) {
+            if(isAns) return;
+            if(val == ansData) show(true, "資料吻合。");
+            else show(false, `錯誤，正確答案為 ${ansData}。`);
+        }
+
+        function checkObj() {
+            if(isAns) return;
+            let vx = parseInt(document.getElementById('vx').value);
+            let vy = parseInt(document.getElementById('vy').value);
+            if(isNaN(vx) || isNaN(vy)) return show(false, "請輸入完整數字。");
+            if(vx === ansData.x && vy === ansData.y) show(true, "坐標鎖定成功！");
+            else show(false, `計算錯誤，目標在 (${ansData.x}, ${ansData.y})。`);
+        }
+
+        function next() {
+            if(q < 5) { q++; loadQ(); }
+            else {
+                if(lvl < 5) { lvl++; q=1; loadQ(); }
+                else {
+                    document.getElementById('terminal').innerHTML = `<h2 style="color:#00f0ff;text-align:center;">系統離線</h2><p style="text-align:center;font-size:1.2em;">特務已全數落網。<br>總獲取積分: ${pts}</p><div style="text-align:center;"><button onclick="location.reload()">重啟系統</button></div>`;
+                }
+            }
+        }
+
+        window.onload = loadQ;
+    </script>
+</body>
+</html>

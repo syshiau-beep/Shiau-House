@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>著作權終極挑戰：含詳細回饋系統</title>
+    <style>
+        :root {
+            --bg: #f4f7f9;
+            --card: #ffffff;
+            --primary: #3498db;
+            --secondary: #2ecc71;
+            --danger: #e74c3c;
+            --text: #2c3e50;
+        }
+
+        body {
+            font-family: "PingFang TC", "Microsoft JhengHei", sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            background: var(--card);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+        }
+
+        /* 倒計時 */
+        .timer-bar {
+            position: sticky;
+            top: 0;
+            background: white;
+            padding: 10px;
+            text-align: center;
+            border-bottom: 2px solid #eee;
+            margin-bottom: 20px;
+            z-index: 100;
+        }
+        #timer-display { font-weight: bold; color: var(--danger); font-size: 1.2rem; }
+
+        .quiz-box, .result-box { display: none; }
+        .active { display: block; animation: fadeIn 0.3s; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .question-text {
+            background: #f8f9fa;
+            padding: 20px;
+            border-left: 6px solid var(--primary);
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+            line-height: 1.7;
+        }
+
+        .options-grid { display: grid; gap: 10px; }
+        .option-btn {
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            text-align: left;
+            transition: 0.2s;
+        }
+        .option-btn:hover:not([disabled]) { border-color: var(--primary); background: #f0faff; }
+        .correct { background: var(--secondary) !important; color: white; border-color: var(--secondary) !important; }
+        .wrong { background: var(--danger) !important; color: white; border-color: var(--danger) !important; }
+
+        /* 結算清單樣式 */
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+        .summary-table th, .summary-table td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+        .summary-table th { background: #f8f9fa; }
+        .status-icon { font-weight: bold; }
+
+        .btn-action {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="start-screen" style="text-align: center;">
+        <h1>⚖️ 著作權數位法庭：100字情境挑戰</h1>
+        <p>測試你在 AI 時代的法律常識！限時 5 分鐘。</p>
+        <button class="btn-action" style="font-size: 1.2rem;" onclick="start()">開始測驗</button>
+    </div>
+
+    <div id="quiz-screen" class="quiz-box">
+        <div class="timer-bar">
+            <div id="timer-display">剩餘時間 05:00</div>
+        </div>
+        <div style="font-weight: bold; color: var(--primary); margin-bottom: 5px;">Question <span id="q-num">1</span>/10</div>
+        <div id="question-content" class="question-text"></div>
+        <div id="options-container" class="options-grid"></div>
+        <button id="next-btn" class="btn-action" style="display:none; float:right;" onclick="next()">下一題</button>
+    </div>
+
+    <div id="result-screen" class="result-box">
+        <h2 id="result-title">測驗結果</h2>
+        <p style="font-size: 1.5rem;">得分：<span id="score-text">0</span> / 10</p>
+        
+        <h3>📊 答題詳細狀況：</h3>
+        <table class="summary-table">
+            <thead>
+                <tr>
+                    <th>題號</th>
+                    <th>結果</th>
+                    <th>你的答案</th>
+                    <th>正確答案</th>
+                    <th>法條要點</th>
+                </tr>
+            </thead>
+            <tbody id="summary-body"></tbody>
+        </table>
+        <button class="btn-action" onclick="location.reload()">重新挑戰</button>
+    </div>
+</div>
+
+<script>
+    const questions = [
+        {
+            q: "小明獨立完成了一篇科幻短文，他擔心如果不向政府機關註冊，作品會不受保護。請問根據我國著作權法，作品何時受到保護？",
+            options: ["向機關登記後", "著作完成時自動保護", "公開發表後", "申請專利後"],
+            correct: 1,
+            hint: "著作人於著作完成時就受到著作權法保護，不需向任何機關註冊。[cite: 5]"
+        },
+        {
+            q: "知名畫家過世，家屬關心其作品的著作財產權。依照法律規定，這類著作財產權的保護期間通常為何？",
+            options: ["死後20年", "發表後30年", "生存期間至死後50年", "永久保護"],
+            correct: 2,
+            hint: "著作財產權保護期間為著作人生存期間至死後 50 年。[cite: 5]"
+        },
+        {
+            q: "小華將他人插畫修圖並簽上自己的名字發布，這侵害了著作人格權。請問著作人格權有何特性？",
+            options: ["可自由讓與", "可被繼承", "專屬於著作人本身，不得讓與或繼承", "僅保護經濟利益"],
+            correct: 2,
+            hint: "著作人格權保護著作人聲譽，專屬於本人，不得讓與或繼承。[cite: 6]"
+        },
+        {
+            q: "小玲使用生成式 AI 產生影像，想知道是否受著作權保護。智慧局認為判斷關鍵在於什麼？",
+            options: ["有無付費", "有無人類精神創作", "生成速度", "AI模型大小"],
+            correct: 1,
+            hint: "AI生成內容是否受保護，視有無「人類精神創作」決定。[cite: 11]"
+        },
+        {
+            q: "科技公司未經授權抓取網路小說訓練 AI 模型。這種訓練行為最可能侵害著作財產權中的哪一項？",
+            options: ["公開口述權", "重製權", "公開演出權", "出租權"],
+            correct: 1,
+            hint: "將未經授權著作放入 AI 模型訓練，可能侵害「重製權」。[cite: 10]"
+        },
+        {
+            q: "著作人享有的著作財產權包含多項權利。下列哪一組行為皆屬於著作財產權的範疇？",
+            options: ["心中欣賞、閱讀", "重製、改作、公開傳輸", "購買正版、轉借朋友", "純粹模仿不發表"],
+            correct: 1,
+            hint: "著作財產權包括重製、改作、公開傳輸、散布及出租等權利。[cite: 6]"
+        },
+        {
+            q: "在資訊科技時代，著作傳輸非常頻繁，利用方式隨時在變。請問這對著作權法律有何影響？",
+            options: ["法律永遠不變", "法律會隨科技廢除", "專有權利涵蓋範圍可能會調整或改變", "只保護紙本"],
+            correct: 2,
+            hint: "因利用方式隨時在變，受保護的專有權利涵蓋範圍可能會調整。[cite: 7]"
+        },
+        {
+            q: "老張出版了教學指南，想將著作財產權轉讓給子女處理授權。請問關於此權利的處分何者正確？",
+            options: ["可透過讓與或授權獲利", "完全不可轉讓", "只能贈送不能賣", "死後自動消失"],
+            correct: 0,
+            hint: "透過讓與或授權，使著作人能獲得經濟利益，成為財產一部分。[cite: 6]"
+        },
+        {
+            q: "生成式 AI 可以創造對話、文章、影像及音樂。請問下列關於生成式 AI 的描述何者正確？",
+            options: ["它是人類", "它是一種可以創造新內容的人工智慧", "它不涉及著作權", "它只能產出文字"],
+            correct: 1,
+            hint: "生成式 AI 是一種可創造新內容與想法的人工智慧，包含對話、文章等。[cite: 8, 9]"
+        },
+        {
+            q: "依據文件，著作權法立法的目的是為了保障什麼？",
+            options: ["AI的權益", "著作人之著作權", "科技公司的利潤", "政府的稅收"],
+            correct: 1,
+            hint: "著作權法立法的目的是為了保障著作人之著作權。[cite: 5]"
+        }
+    ];
+
+    let current = 0;
+    let score = 0;
+    let timeLeft = 300;
+    let timer;
+    let userAnswers = [];
+
+    function start() {
+        document.getElementById('start-screen').style.display = 'none';
+        document.getElementById('quiz-screen').classList.add('active');
+        loadQ();
+        timer = setInterval(() => {
+            timeLeft--;
+            let m = Math.floor(timeLeft/60), s = timeLeft%60;
+            document.getElementById('timer-display').innerText = `剩餘時間 ${m}:${s<10?'0':''}${s}`;
+            if(timeLeft <= 0) end(true);
+        }, 1000);
+    }
+
+    function loadQ() {
+        const q = questions[current];
+        document.getElementById('q-num').innerText = current + 1;
+        document.getElementById('question-content').innerText = q.q;
+        const container = document.getElementById('options-container');
+        container.innerHTML = '';
+        q.options.forEach((opt, i) => {
+            const b = document.createElement('button');
+            b.className = 'option-btn';
+            b.innerText = opt;
+            b.onclick = () => select(i);
+            container.appendChild(b);
+        });
+        document.getElementById('next-btn').style.display = 'none';
+    }
+
+    function select(idx) {
+        const q = questions[current];
+        const btns = document.querySelectorAll('.option-btn');
+        btns.forEach(b => b.disabled = true);
+        
+        const isCorrect = (idx === q.correct);
+        if(isCorrect) {
+            btns[idx].classList.add('correct');
+            score++;
+        } else {
+            btns[idx].classList.add('wrong');
+            btns[q.correct].classList.add('correct');
+        }
+        
+        userAnswers.push({
+            qIndex: current + 1,
+            isCorrect: isCorrect,
+            userText: q.options[idx],
+            correctText: q.options[q.correct],
+            hint: q.hint
+        });
+
+        document.getElementById('next-btn').style.display = 'block';
+    }
+
+    function next() {
+        current++;
+        if(current < questions.length) loadQ();
+        else end(false);
+    }
+
+    function end(isTimeOut) {
+        clearInterval(timer);
+        document.getElementById('quiz-screen').style.display = 'none';
+        document.getElementById('result-screen').classList.add('active');
+        document.getElementById('score-text').innerText = score;
+        if(isTimeOut) document.getElementById('result-title').innerText = "⏰ 時間到！測驗結束";
+
+        const tbody = document.getElementById('summary-body');
+        userAnswers.forEach(ans => {
+            const row = `<tr>
+                <td>${ans.qIndex}</td>
+                <td class="status-icon" style="color:${ans.isCorrect?'green':'red'}">${ans.isCorrect?'✅':'❌'}</td>
+                <td>${ans.userText}</td>
+                <td>${ans.correctText}</td>
+                <td>${ans.hint}</td>
+            </tr>`;
+            tbody.innerHTML += row;
+        });
+    }
+</script>
+
+</body>
+</html>

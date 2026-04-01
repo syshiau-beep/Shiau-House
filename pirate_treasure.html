@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>海盜尋寶記</title>
+<style>
+  body { font-family: 'Times New Roman', serif; background: #3e2723; color: #4e342e; display: flex; flex-direction: column; align-items: center; padding: 20px; margin:0; }
+  h1 { color: #ffb300; margin-bottom: 5px; text-shadow: 2px 2px #000;}
+  #game-ui { background: #d7ccc8; background-image: radial-gradient(#efebe9 20%, #d7ccc8 80%); padding: 20px; border: 5px solid #5d4037; border-radius: 5px; box-shadow: 0 0 20px #000; width: 450px; text-align: center; position: relative;}
+  #header { display: flex; justify-content: space-between; font-weight: bold; font-size: 1.2em; margin-bottom: 10px; border-bottom: 2px dashed #795548; padding-bottom: 5px;}
+  .timer { color: #c62828; }
+  canvas { background: #fff3e0; border: 2px solid #5d4037; cursor: default; margin-bottom: 10px;}
+  input { width: 40px; text-align: center; padding: 5px; border: 2px solid #8d6e63; background: transparent; font-weight:bold;}
+  button { background: #5d4037; border: 2px solid #3e2723; padding: 8px 15px; color: #ffb300; font-weight: bold; cursor: pointer; margin: 5px; transition: 0.2s;}
+  button:hover { background: #3e2723; }
+  #controls { min-height: 50px; }
+  #review-screen { display: none; position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(239,235,233,0.95); flex-direction: column; padding: 20px; box-sizing: border-box; overflow-y: auto;}
+  .review-item { text-align: left; padding: 8px; margin-bottom: 5px; border-bottom: 1px solid #bcaaa4; font-size: 0.95em;}
+  .correct { color: #2e7d32; font-weight: bold;} .wrong { color: #c62828; font-weight: bold;}
+</style>
+</head>
+<body>
+  <h1>🏴‍☠️ 海盜尋寶記</h1>
+  <div id="game-ui">
+    <div id="header">
+      <span id="lvl-text">第 1 關 (1/5)</span>
+      <span class="timer">⏳ <span id="time">75</span>s</span>
+    </div>
+    <div id="question" style="margin-bottom:10px; font-weight:bold; height:45px;">載入中...</div>
+    <canvas id="grid" width="400" height="400"></canvas>
+    <div id="controls"></div>
+    
+    <div id="review-screen">
+      <h2 style="color:#5d4037; margin-top:0;" id="review-title">航海日誌</h2>
+      <div id="review-list"></div>
+      <button onclick="nextLevelOrRestart()" id="review-btn" style="width:100%; margin-top:15px; padding:10px;">繼續航行</button>
+    </div>
+  </div>
+
+<script>
+const ctx = document.getElementById('grid').getContext('2d');
+const size = 400, step = 40, origin = 200;
+let level = 1, q = 1, timeLeft = 75, timerId;
+let tX, tY; 
+let history = [];
+let cQDesc = "", cAns = "";
+
+function rand(min, max, excl=[]) { let n; do { n = Math.floor(Math.random()*(max-min+1))+min; } while(excl.includes(n)); return n; }
+
+function drawGrid() {
+  ctx.clearRect(0,0,size,size);
+  ctx.strokeStyle = '#d7ccc8'; ctx.lineWidth = 1; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.font="12px Times";
+  for(let i=-5; i<=5; i++) { let p = origin + i*step; ctx.beginPath(); ctx.moveTo(p, 0); ctx.lineTo(p, size); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0, p); ctx.lineTo(size, p); ctx.stroke(); }
+  ctx.strokeStyle = '#5d4037'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0, origin); ctx.lineTo(size, origin); ctx.stroke(); // X
+  ctx.beginPath(); ctx.moveTo(origin, 0); ctx.lineTo(origin, size); ctx.stroke(); // Y
+  ctx.fillStyle = '#5d4037'; ctx.fillText('O', origin+10, origin+12);
+  for(let i=-5; i<=5; i++) { if(i!==0){ ctx.fillText(i, origin+i*step, origin+12); ctx.fillText(i, origin-12, origin-i*step); } }
+}
+function drawPoint(x, y, icon) { ctx.font = "20px Arial"; ctx.fillText(icon, origin+x*step, origin-y*step); }
+
+function startTimer() {
+  clearInterval(timerId); timeLeft = 75; document.getElementById('time').innerText = timeLeft;
+  timerId = setInterval(() => {
+    timeLeft--; document.getElementById('time').innerText = timeLeft;
+    if(timeLeft <= 0) { clearInterval(timerId); showReview("時間耗盡！"); }
+  }, 1000);
+}
+
+function loadQ() {
+  document.getElementById('lvl-text').innerText = `第 ${level} 關 (${q}/5)`;
+  let ctrl = document.getElementById('controls'), qt = document.getElementById('question');
+  let cvs = document.getElementById('grid'); cvs.onclick = null; cvs.style.cursor = 'default';
+  drawGrid();
+
+  if(level===1) {
+    tX = rand(-4,4); tY = rand(-4,4);
+    qt.innerHTML = `發現骷髏岩石！請記錄它的坐標。`; cQDesc = `讀取骷髏岩石坐標`; cAns = `(${tX}, ${tY})`;
+    drawPoint(tX, tY, '💀'); ctrl.innerHTML = `(<input id="ix">, <input id="iy">) <button onclick="check(1)">記錄</button>`;
+  } else if(level===2) {
+    tX = rand(-5,5); tY = rand(-5,5);
+    qt.innerHTML = `在藏寶圖上點擊 <b>(${tX}, ${tY})</b> 埋藏金幣！`; cQDesc = `點擊 (${tX}, ${tY})`; cAns = `點擊 (${tX}, ${tY})`;
+    ctrl.innerHTML = ''; cvs.style.cursor = 'crosshair';
+    cvs.onclick = (e) => {
+      let r = cvs.getBoundingClientRect();
+      let cx = Math.max(-5, Math.min(5, Math.round((e.clientX - r.left - origin)/step)));
+      let cy = Math.max(-5, Math.min(5, Math.round((origin - (e.clientY - r.top))/step)));
+      check(2, cx, cy);
+    };
+  } else if(level===3) {
+    tX = rand(-5,5,[0]); tY = rand(-5,5,[0]);
+    qt.innerHTML = `目標 <b>(${tX}, ${tY})</b> 位在哪片海域(象限)？`; cQDesc = `判斷 (${tX}, ${tY}) 海域`;
+    drawPoint(tX, tY, '⛵');
+    if(tX>0&&tY>0) cAns="東北海(一)"; else if(tX<0&&tY>0) cAns="西北海(二)"; else if(tX<0&&tY<0) cAns="西南海(三)"; else cAns="東南海(四)";
+    ctrl.innerHTML = `<button onclick="check(3,'東北海(一)')">東北(I)</button> <button onclick="check(3,'西北海(二)')">西北(II)</button> <button onclick="check(3,'西南海(三)')">西南(III)</button> <button onclick="check(3,'東南海(四)')">東南(IV)</button>`;
+  } else if(level===4) {
+    tX = rand(-5,5,[0]); tY = rand(-5,5,[0]); let askX = rand(0,1)>0;
+    qt.innerHTML = `寶藏在 <b>(${tX}, ${tY})</b>，距離 <span style="color:#c62828">${askX?'赤道(X軸)':'子午線(Y軸)'}</span> 有多遠？`;
+    cQDesc = `求(${tX},${tY})到${askX?'X':'Y'}軸距離`; cAns = askX ? Math.abs(tY).toString() : Math.abs(tX).toString();
+    drawPoint(tX, tY, '💎'); ctrl.innerHTML = `距離: <input id="ix" style="width:50px"> 單位 <button onclick="check(4)">測量</button>`;
+  } else if(level===5) {
+    let sX = rand(-3,3), sY = rand(-3,3); let dx = rand(-2,2,[0]), dy = rand(-2,2,[0]);
+    tX = sX+dx; tY = sY+dy;
+    let dStr = `向${dx>0?'東':'西'}走 ${Math.abs(dx)} 步，向${dy>0?'北':'南'}走 ${Math.abs(dy)} 步`;
+    qt.innerHTML = `船長${dStr}後，把寶箱埋在 <b>(${tX}, ${tY})</b>。<br>反推他一開始的起點在哪？`; 
+    cQDesc = `從(${tX},${tY})反推起點`; cAns = `(${sX}, ${sY})`; drawPoint(tX, tY, '✖️');
+    ctrl.innerHTML = `起點: (<input id="ix">, <input id="iy">) <button onclick="check(5, ${sX}, ${sY})">挖掘</button>`;
+  }
+}
+
+function check(type, cx, cy) {
+  let uAns = "", ok = false;
+  if(type===1) {
+    let x = parseInt(document.getElementById('ix').value), y = parseInt(document.getElementById('iy').value);
+    if(isNaN(x) || isNaN(y)) return alert("請輸入數字！");
+    uAns = `(${x}, ${y})`; ok = (x===tX && y===tY);
+  } else if(type===2) { uAns = `點擊 (${cx}, ${cy})`; ok = (cx===tX && cy===tY);
+  } else if(type===3) { uAns = cx; ok = (cx===cAns);
+  } else if(type===4) { 
+    let v = document.getElementById('ix').value; if(v==="") return alert("請輸入數字！");
+    uAns = v; ok = (v === cAns);
+  } else if(type===5) {
+    let x = parseInt(document.getElementById('ix').value), y = parseInt(document.getElementById('iy').value);
+    if(isNaN(x) || isNaN(y)) return alert("請輸入數字！");
+    uAns = `(${x}, ${y})`; ok = (x===cx && y===cy);
+  }
+  history.push({ q: q, desc: cQDesc, uAns: uAns, cAns: cAns, ok: ok });
+  if(q < 5) { q++; loadQ(); } else { clearInterval(timerId); showReview("地圖探索完成！"); }
+}
+
+function showReview(title) {
+  document.getElementById('review-title').innerText = title;
+  let list = document.getElementById('review-list'); list.innerHTML = ""; let cc = 0;
+  history.forEach(h => {
+    if(h.ok) cc++;
+    list.innerHTML += `<div class="review-item"><b style="color:#3e2723">Q${h.q}: ${h.desc}</b><br>
+      作答: <span class="${h.ok?'correct':'wrong'}">${h.uAns} ${h.ok?'(命中)':'(偏離)'}</span><br>正確: ${h.cAns}</div>`;
+  });
+  list.innerHTML = `<h3 style="margin-top:0">尋寶正確率: ${cc}/5</h3>` + list.innerHTML;
+  let btn = document.getElementById('review-btn');
+  if(level === 5 && cc > 0) { btn.innerText = "🏆 成為海盜王 (重新開始)"; btn.onclick = () => location.reload(); }
+  else if(cc < 3) { btn.innerText = "🔄 迷失方向，重新本關"; } else { btn.innerText = "➡️ 前往下一張海圖"; }
+  document.getElementById('review-screen').style.display = 'flex';
+}
+
+function nextLevelOrRestart() {
+  document.getElementById('review-screen').style.display = 'none';
+  if(history.filter(h=>h.ok).length >= 3 && level < 5) level++; 
+  q = 1; history = []; startTimer(); loadQ();
+}
+window.onload = () => { startTimer(); loadQ(); };
+</script>
+</body>
+</html>

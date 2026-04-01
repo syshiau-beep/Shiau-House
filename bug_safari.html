@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>昆蟲生態觀察家</title>
+<style>
+  body { font-family: '微軟正黑體', sans-serif; background: #e8f5e9; color: #1b5e20; display: flex; flex-direction: column; align-items: center; padding: 20px; margin:0;}
+  h1 { color: #2e7d32; margin-bottom: 5px; }
+  #game-ui { background: #ffffff; border: 3px solid #4caf50; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 450px; text-align: center; position: relative; overflow: hidden;}
+  #header { display: flex; justify-content: space-between; background: #c8e6c9; padding: 10px; border-radius: 5px; font-weight: bold; margin-bottom: 10px;}
+  .timer { color: #fff; background: #388e3c; padding: 2px 8px; border-radius: 5px; }
+  canvas { background: #f1f8e9; border: 1px solid #a5d6a7; border-radius: 5px; cursor: default; margin-bottom: 10px;}
+  input { width: 40px; text-align: center; padding: 5px; margin: 0 5px; border-radius: 3px; border: 1px solid #4caf50; background: #e8f5e9;}
+  button { background: #4caf50; border: none; padding: 8px 15px; color: #fff; font-weight: bold; border-radius: 5px; cursor: pointer; margin: 5px;}
+  button:hover { background: #2e7d32; }
+  #controls { min-height: 60px; }
+  .grid-btn { width: 45%; }
+  #review-screen { display: none; position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(255,255,255,0.95); border-radius:10px; flex-direction: column; padding: 20px; box-sizing: border-box; overflow-y: auto; z-index: 200;}
+  .review-item { text-align: left; background: #e8f5e9; padding: 10px; margin-bottom: 5px; border-left: 5px solid; border-radius: 3px; font-size: 0.9em;}
+  .correct { border-color: #4caf50; } .wrong { border-color: #f44336; }
+  
+  /* 答題回饋彈出動畫 */
+  .feedback-pop {
+    position: absolute; 
+    top: 45%; 
+    left: 50%; 
+    transform: translate(-50%, -50%);
+    font-size: 4em; 
+    font-weight: bold; 
+    z-index: 100; 
+    pointer-events: none;
+    text-shadow: 2px 2px 0px #fff, -2px -2px 0px #fff, 0 4px 15px rgba(0,0,0,0.2);
+    animation: popAnim 1s ease-in-out forwards;
+  }
+  @keyframes popAnim {
+    0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+    20% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+    80% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+  <h1>🦋 昆蟲生態觀察家</h1>
+  <div id="game-ui">
+    <div id="header">
+      <span id="lvl-text">第 1 關 (1/5)</span>
+      <span class="timer">⏳ <span id="time">90</span>s</span>
+    </div>
+    <div id="question" style="margin-bottom:10px; font-size:1.1em; height:45px;">載入中...</div>
+    <canvas id="grid" width="400" height="400"></canvas>
+    <div id="controls"></div>
+    
+    <div id="review-screen">
+      <h2 style="color:#2e7d32; margin-top:0;" id="review-title">觀察紀錄表</h2>
+      <div id="review-list"></div>
+      <button onclick="nextLevelOrRestart()" id="review-btn" style="width:100%; margin-top:15px; padding:10px;">繼續調查</button>
+    </div>
+  </div>
+
+<script>
+const ctx = document.getElementById('grid').getContext('2d');
+const size = 400, step = 40, origin = 200;
+let level = 1, q = 1, timeLeft = 90, timerId;
+let tX, tY, cQDesc = "", cAns = "";
+let history = [];
+
+function rand(min, max, excl=[]) { let n; do { n = Math.floor(Math.random()*(max-min+1))+min; } while(excl.includes(n)); return n; }
+
+function drawGrid() {
+  ctx.clearRect(0,0,size,size);
+  ctx.strokeStyle = '#c8e6c9'; ctx.lineWidth = 1; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.font="12px Arial";
+  for(let i=-5; i<=5; i++) { let p = origin + i*step; ctx.beginPath(); ctx.moveTo(p, 0); ctx.lineTo(p, size); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0, p); ctx.lineTo(size, p); ctx.stroke(); }
+  ctx.strokeStyle = '#388e3c'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0, origin); ctx.lineTo(size, origin); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(origin, 0); ctx.lineTo(origin, size); ctx.stroke();
+  ctx.fillStyle = '#1b5e20'; ctx.fillText('O', origin+10, origin+12);
+  for(let i=-5; i<=5; i++) { if(i!==0){ ctx.fillText(i, origin+i*step, origin+12); ctx.fillText(i, origin-12, origin-i*step); } }
+}
+function drawPoint(x, y, icon) { ctx.font = "20px Arial"; ctx.fillText(icon, origin+x*step, origin-y*step); }
+
+function startTimer() {
+  clearInterval(timerId); timeLeft = 90; document.getElementById('time').innerText = timeLeft;
+  timerId = setInterval(() => {
+    timeLeft--; document.getElementById('time').innerText = timeLeft;
+    if(timeLeft <= 0) { clearInterval(timerId); showReview("調查時間結束！"); }
+  }, 1000);
+}
+
+function loadQ() {
+  document.getElementById('lvl-text').innerText = `第 ${level} 關 (${q}/5)`;
+  let ctrl = document.getElementById('controls'), qt = document.getElementById('question');
+  let cvs = document.getElementById('grid'); cvs.onclick = null; cvs.style.cursor = 'default';
+  drawGrid();
+
+  if(level===1) {
+    tX = rand(-4,4); tY = rand(-4,4);
+    qt.innerHTML = `發現稀有蝴蝶！請記錄它的坐標。`; cQDesc = `記錄蝴蝶坐標`; cAns = `(${tX}, ${tY})`;
+    drawPoint(tX, tY, '🦋'); ctrl.innerHTML = `(<input id="ix">, <input id="iy">) <button onclick="check(1)">記錄</button>`;
+  } else if(level===2) {
+    tX = rand(-5,5); tY = rand(-5,5);
+    qt.innerHTML = `請在 <b>(${tX}, ${tY})</b> 佈置觀察誘餌！`; cQDesc = `點擊 (${tX}, ${tY})`; cAns = `點擊 (${tX}, ${tY})`;
+    ctrl.innerHTML = ''; cvs.style.cursor = 'crosshair';
+    cvs.onclick = (e) => {
+      let r = cvs.getBoundingClientRect();
+      let cx = Math.max(-5, Math.min(5, Math.round((e.clientX - r.left - origin)/step)));
+      let cy = Math.max(-5, Math.min(5, Math.round((origin - (e.clientY - r.top))/step)));
+      
+      // 畫出蘋果誘餌並鎖定點擊
+      drawPoint(cx, cy, '🍎');
+      cvs.onclick = null; 
+      cvs.style.cursor = 'default';
+      
+      // 延遲 0.5 秒後判定
+      setTimeout(() => {
+          check(2, cx, cy);
+      }, 500);
+    };
+  } else if(level===3) {
+    // 方案一：實際數字判斷象限
+    let qX = rand(-5, 5, [0]); 
+    let qY = rand(-5, 5, [0]); 
+    qt.innerHTML = `探測器顯示昆蟲出沒在坐標 <b>(${qX}, ${qY})</b>。<br>這屬於哪一個生態區(象限)？`;
+    cQDesc = `坐標 (${qX}, ${qY}) 判斷象限`;
+    
+    // ★ 新增這行：將題目中的坐標點標示在畫布上 (這裡用瓢蟲圖案)
+    drawPoint(qX, qY, '🐞');
+    
+    // 判斷正確答案
+    if(qX > 0 && qY > 0) cAns = "第一區";
+    else if(qX < 0 && qY > 0) cAns = "第二區";
+    else if(qX < 0 && qY < 0) cAns = "第三區";
+    else cAns = "第四區";
+    
+    // 產生按鈕
+    ctrl.innerHTML = `
+      <button class="grid-btn" onclick="check(3,'第一區')">第一區(象限)</button> 
+      <button class="grid-btn" onclick="check(3,'第二區')">第二區(象限)</button><br>
+      <button class="grid-btn" onclick="check(3,'第三區')">第三區(象限)</button> 
+      <button class="grid-btn" onclick="check(3,'第四區')">第四區(象限)</button>
+    `;
+  } else if(level===4) {
+    let isXAxis = rand(0,1)>0;
+    qt.innerHTML = `已知某昆蟲棲息在 <b style="color:#d32f2f">${isXAxis?'X軸':'Y軸'}</b> 上。<br>請選出牠可能的坐標：`;
+    cQDesc = `判斷 ${isXAxis?'X':'Y'}軸 的特徵`;
+    let opts = [];
+    if(isXAxis) { cAns = `(${rand(-5,5,[0])}, 0)`; opts = [cAns, `(0, ${rand(-5,5,[0])})`, `(${rand(1,5)}, ${rand(1,5)})`]; }
+    else { cAns = `(0, ${rand(-5,5,[0])})`; opts = [cAns, `(${rand(-5,5,[0])}, 0)`, `(${rand(1,5)}, ${rand(1,5)})`]; }
+    opts.sort(()=>Math.random()-0.5); 
+    
+    // ★ 修改重點：將按鈕的 onclick 改為呼叫新的延遲繪圖函數
+    ctrl.innerHTML = opts.map(o => `<button onclick="showPointAndCheck('${o}')">${o}</button>`).join('');
+  } else if(level===5) {
+    let quad = rand(1,4), dX = rand(1,5), dY = rand(1,5);
+    let qName = ["一","二","三","四"][quad-1];
+    qt.innerHTML = `甲蟲位在 <b>第${qName}象限</b>，<br>距離 X 軸 <b>${dX}</b> 單位，距離 Y 軸 <b>${dY}</b> 單位。`;
+    cQDesc = `依象限與距離求坐標`; 
+    if(quad===1) cAns=`(${dY}, ${dX})`; else if(quad===2) cAns=`(-${dY}, ${dX})`; else if(quad===3) cAns=`(-${dY}, -${dX})`; else cAns=`(${dY}, -${dX})`;
+    ctrl.innerHTML = `確切坐標: (<input id="ix">, <input id="iy">) <button onclick="check(5)">確認</button>`;
+  }
+}
+
+function showPointAndCheck(ans) {
+  // 1. 鎖定作答區，防止學生在動畫期間連續點擊其他選項
+  document.getElementById('controls').style.pointerEvents = 'none';
+  
+  // 2. 解析坐標：把字串 "(3, 0)" 拆解出數字 x=3, y=0
+  let match = ans.match(/\(([-]?\d+),\s*([-]?\d+)\)/);
+  if(match) {
+    let px = parseInt(match[1]);
+    let py = parseInt(match[2]);
+    
+    // 3. 在畫布上標示出玩家點選的坐標 (這裡用小螞蟻 🐜 代表)
+    drawPoint(px, py, '🐜'); 
+  }
+  
+  // 4. 延遲 0.5 秒，讓學生看清楚螞蟻出現在哪裡後，再進行對錯判定
+  setTimeout(() => {
+    check(4, ans);
+  }, 500);
+}
+
+function check(type, cx, cy) {
+  let uAns = "", ok = false;
+  
+  if(type===1 || type===5) {
+    let x = parseInt(document.getElementById('ix').value), y = parseInt(document.getElementById('iy').value);
+    if(isNaN(x) || isNaN(y)) return alert("請輸入數字！");
+    uAns = `(${x}, ${y})`; ok = (uAns === cAns);
+  } else if(type===2) { 
+    uAns = `點擊 (${cx}, ${cy})`; ok = (cx===tX && cy===tY);
+  } else { 
+    // 處理選擇題 (包含 type 3 和 type 4)
+    uAns = cx; ok = (cx===cAns); 
+  }
+  
+  history.push({ q: q, desc: cQDesc, uAns: uAns, cAns: cAns, ok: ok });
+
+  // 產生反應回饋特效
+  let fb = document.createElement('div');
+  fb.className = 'feedback-pop';
+  if(ok) {
+    fb.innerHTML = '✅ 正確！';
+    fb.style.color = '#4caf50';
+  } else {
+    fb.innerHTML = '❌ 錯誤！';
+    fb.style.color = '#f44336';
+  }
+  document.getElementById('game-ui').appendChild(fb);
+
+  // 鎖定操作區
+  document.getElementById('controls').style.pointerEvents = 'none';
+
+  // 延遲 1 秒後進入下一題
+  setTimeout(() => {
+    fb.remove(); 
+    document.getElementById('controls').style.pointerEvents = 'auto'; 
+    
+    if(q < 5) { 
+        q++; 
+        loadQ(); 
+    } else { 
+        clearInterval(timerId); 
+        showReview("調查階段完成！"); 
+    }
+  }, 1000); 
+}
+
+function showReview(title) {
+  document.getElementById('review-title').innerText = title;
+  let list = document.getElementById('review-list'); list.innerHTML = ""; let cc = 0;
+  history.forEach(h => {
+    if(h.ok) cc++;
+    list.innerHTML += `<div class="review-item ${h.ok?'correct':'wrong'}">
+      <b>Q${h.q}: ${h.desc}</b><br>判定結果: ${h.uAns} ${h.ok?'✅':'❌'}<br>正確解答: ${h.cAns}</div>`;
+  });
+  list.innerHTML = `<div style="font-size:1.2em; margin-bottom:10px; text-align:center;">生態還原度: ${cc*20}%</div>` + list.innerHTML;
+  let btn = document.getElementById('review-btn');
+  if(level === 5 && cc > 0) { btn.innerText = "🏆 成為首席生態學家 (重新開始)"; btn.onclick = () => location.reload(); }
+  else if(cc < 3) { btn.innerText = "🔄 資料不足，重新本關調查"; } else { btn.innerText = "➡️ 進入下一區域"; }
+  document.getElementById('review-screen').style.display = 'flex';
+}
+
+function nextLevelOrRestart() {
+  document.getElementById('review-screen').style.display = 'none';
+  if(history.filter(h=>h.ok).length >= 3 && level < 5) level++; 
+  q = 1; history = []; startTimer(); loadQ();
+}
+window.onload = () => { startTimer(); loadQ(); };
+</script>
+</body>
+</html>

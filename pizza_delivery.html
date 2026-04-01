@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>瘋狂披薩外送員</title>
+<style>
+  body { font-family: '微軟正黑體', sans-serif; background: #2c3e50; color: #ecf0f1; display: flex; flex-direction: column; align-items: center; padding: 20px; margin:0;}
+  h1 { color: #f1c40f; margin-bottom: 5px;}
+  #game-ui { background: #34495e; padding: 20px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); width: 450px; text-align: center; position: relative;}
+  #header { display: flex; justify-content: space-between; background: #e67e22; padding: 10px; border-radius: 5px; font-weight: bold; margin-bottom: 10px; color:#fff;}
+  .timer { color: #fff; background: #c0392b; padding: 2px 8px; border-radius: 5px; animation: pulse 1s infinite;}
+  canvas { background: #ecf0f1; border-radius: 5px; cursor: default; margin-bottom: 10px;}
+  input { width: 40px; text-align: center; padding: 5px; margin: 0 5px; border-radius: 3px; border: 1px solid #ccc;}
+  button { background: #f39c12; border: none; padding: 8px 15px; color: #fff; font-weight: bold; border-radius: 5px; cursor: pointer; margin: 5px;}
+  button:hover { background: #d35400; }
+  #controls { min-height: 60px; }
+  #review-screen { display: none; position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(44,62,80,0.95); border-radius: 10px; flex-direction: column; padding: 20px; box-sizing: border-box; overflow-y: auto;}
+  .review-item { text-align: left; background: #2c3e50; padding: 10px; margin-bottom: 5px; border-left: 5px solid; border-radius: 3px; font-size: 0.9em;}
+  .correct { border-color: #2ecc71; } .wrong { border-color: #e74c3c; }
+  @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
+</style>
+</head>
+<body>
+  <h1>🍕 瘋狂披薩外送員</h1>
+  <div id="game-ui">
+    <div id="header">
+      <span id="lvl-text">第 1 關 (1/5)</span>
+      <span class="timer">⏳ <span id="time">60</span>s</span>
+    </div>
+    <div id="question" style="margin-bottom:10px; font-size:1.1em; height:45px;">載入中...</div>
+    <canvas id="grid" width="400" height="400"></canvas>
+    <div id="controls"></div>
+    
+    <div id="review-screen">
+      <h2 style="color:#f1c40f; margin-top:0;" id="review-title">任務結算</h2>
+      <div id="review-list"></div>
+      <button onclick="nextLevelOrRestart()" id="review-btn" style="width:100%; margin-top:15px; padding:10px;">進入下一關</button>
+    </div>
+  </div>
+
+<script>
+const ctx = document.getElementById('grid').getContext('2d');
+const size = 400, step = 40, origin = 200;
+let level = 1, q = 1, timeLeft = 60, timerId;
+let tX, tY, sX, sY; // 目標與起點
+let history = []; // 紀錄每題作答
+let currentQDesc = "", currentCorrectAns = "";
+
+function rand(min, max, excl=[]) { let n; do { n = Math.floor(Math.random()*(max-min+1))+min; } while(excl.includes(n)); return n; }
+
+function drawGrid() {
+  ctx.clearRect(0,0,size,size);
+  ctx.strokeStyle = '#bdc3c7'; ctx.lineWidth = 1; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.font="12px Arial";
+  for(let i=-5; i<=5; i++) {
+    let p = origin + i*step;
+    ctx.beginPath(); ctx.moveTo(p, 0); ctx.lineTo(p, size); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, p); ctx.lineTo(size, p); ctx.stroke();
+  }
+  ctx.strokeStyle = '#2c3e50'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0, origin); ctx.lineTo(size, origin); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(origin, 0); ctx.lineTo(origin, size); ctx.stroke();
+  ctx.fillStyle = '#2c3e50'; ctx.fillText('O', origin+10, origin+12);
+  for(let i=-5; i<=5; i++) { if(i!==0){ ctx.fillText(i, origin+i*step, origin+12); ctx.fillText(i, origin-12, origin-i*step); } }
+}
+function drawPoint(x, y, icon) {
+  let px = origin + x*step, py = origin - y*step;
+  ctx.font = "20px Arial"; ctx.fillText(icon, px, py);
+}
+
+function startTimer() {
+  clearInterval(timerId); timeLeft = 60; document.getElementById('time').innerText = timeLeft;
+  timerId = setInterval(() => {
+    timeLeft--; document.getElementById('time').innerText = timeLeft;
+    if(timeLeft <= 0) { clearInterval(timerId); showReview("時間到！"); }
+  }, 1000);
+}
+
+function loadQ() {
+  document.getElementById('lvl-text').innerText = `第 ${level} 關 (${q}/5)`;
+  let ctrl = document.getElementById('controls'), qt = document.getElementById('question');
+  let cvs = document.getElementById('grid'); cvs.onclick = null; cvs.style.cursor = 'default';
+  drawGrid();
+
+  if(level===1) {
+    tX = rand(-4,4); tY = rand(-4,4);
+    qt.innerHTML = `顧客在雷達上，請輸入他的坐標位置！`; currentQDesc = `讀取坐標位置`;
+    drawPoint(tX, tY, '🧍'); currentCorrectAns = `(${tX}, ${tY})`;
+    ctrl.innerHTML = `(<input id="ix">, <input id="iy">) <button onclick="check(1)">送出</button>`;
+  } else if(level===2) {
+    tX = rand(-5,5); tY = rand(-5,5);
+    qt.innerHTML = `請在地圖上點擊 <b>(${tX}, ${tY})</b> 進行外送！`; currentQDesc = `點擊坐標 (${tX}, ${tY})`;
+    currentCorrectAns = `點擊 (${tX}, ${tY})`; ctrl.innerHTML = ''; cvs.style.cursor = 'crosshair';
+    cvs.onclick = (e) => {
+      let r = cvs.getBoundingClientRect();
+      let cx = Math.round((e.clientX - r.left - origin)/step), cy = Math.round((origin - (e.clientY - r.top))/step);
+      cx = Math.max(-5, Math.min(5, cx)); cy = Math.max(-5, Math.min(5, cy));
+      check(2, cx, cy);
+    };
+  } else if(level===3) {
+    let type = rand(1,3);
+    if(type===1){ tX = rand(-4,4,[0]); tY = 0; currentCorrectAns="X大道"; }
+    else if(type===2){ tX = 0; tY = rand(-4,4,[0]); currentCorrectAns="Y大道"; }
+    else { tX = 0; tY = 0; currentCorrectAns="市中心"; }
+    qt.innerHTML = `顧客在 <b>(${tX}, ${tY})</b>，這是哪條路？`; currentQDesc = `判斷 (${tX}, ${tY}) 所在軸`;
+    drawPoint(tX, tY, '🧍');
+    ctrl.innerHTML = `<button onclick="check(3,'X大道')">X大道(X軸)</button> <button onclick="check(3,'Y大道')">Y大道(Y軸)</button> <button onclick="check(3,'市中心')">市中心(原點)</button>`;
+  } else if(level===4) {
+    tX = rand(-5,5,[0]); tY = rand(-5,5,[0]);
+    qt.innerHTML = `顧客在 <b>(${tX}, ${tY})</b>，屬於哪個外送區？`; currentQDesc = `判斷 (${tX}, ${tY}) 象限`;
+    drawPoint(tX, tY, '🧍');
+    if(tX>0&&tY>0) currentCorrectAns="第一區"; else if(tX<0&&tY>0) currentCorrectAns="第二區";
+    else if(tX<0&&tY<0) currentCorrectAns="第三區"; else currentCorrectAns="第四區";
+    ctrl.innerHTML = `<button onclick="check(4,'第一區')">一(+,+)</button> <button onclick="check(4,'第二區')">二(-,+)</button> <button onclick="check(4,'第三區')">三(-,-)</button> <button onclick="check(4,'第四區')">四(+,-)</button>`;
+  } else if(level===5) {
+    sX = rand(-3,3); sY = rand(-3,3); let dx = rand(-2,2,[0]), dy = rand(-2,2,[0]);
+    tX = sX+dx; tY = sY+dy;
+    let dStr = `${dx>0?'向右':'向左'}走 ${Math.abs(dx)} 格，${dy>0?'向上':'向下'}走 ${Math.abs(dy)} 格`;
+    qt.innerHTML = `從 <b>(${sX}, ${sY})</b> 出發，${dStr}，新坐標是？`; currentQDesc = `從(${sX},${sY}) ${dStr}`;
+    drawPoint(sX, sY, '🛵'); currentCorrectAns = `(${tX}, ${tY})`;
+    ctrl.innerHTML = `(<input id="ix">, <input id="iy">) <button onclick="check(5)">送出</button>`;
+  }
+}
+
+function check(type, px, py) {
+  let userAns = "", isCorr = false;
+  if(type===1 || type===5) {
+    let x = parseInt(document.getElementById('ix').value), y = parseInt(document.getElementById('iy').value);
+    if(isNaN(x) || isNaN(y)) return alert("請輸入數字！");
+    userAns = `(${x}, ${y})`; isCorr = (x===tX && y===tY);
+  } else if(type===2) { userAns = `點擊 (${px}, ${py})`; isCorr = (px===tX && py===tY);
+  } else { userAns = px; isCorr = (px===currentCorrectAns); }
+
+  history.push({ q: q, desc: currentQDesc, uAns: userAns, cAns: currentCorrectAns, ok: isCorr });
+  if(q < 5) { q++; loadQ(); } else { clearInterval(timerId); showReview("關卡完成！"); }
+}
+
+function showReview(title) {
+  document.getElementById('review-title').innerText = title;
+  let list = document.getElementById('review-list'); list.innerHTML = "";
+  let correctCount = 0;
+  history.forEach(h => {
+    if(h.ok) correctCount++;
+    list.innerHTML += `<div class="review-item ${h.ok?'correct':'wrong'}">
+      <b>Q${h.q}: ${h.desc}</b><br>你的答案: ${h.uAns} ${h.ok?'✅':'❌'}<br>正確答案: ${h.cAns}
+    </div>`;
+  });
+  list.innerHTML = `<div style="text-align:center; font-size:1.2em; margin-bottom:10px; color:#fff;">得分: ${correctCount*20} / 100</div>` + list.innerHTML;
+  let btn = document.getElementById('review-btn');
+  if(level === 5 && correctCount > 0) { btn.innerText = "🏆 重新挑戰遊戲"; btn.onclick = () => location.reload(); }
+  else if(correctCount < 3) { btn.innerText = "🔄 成績不佳，重新本關"; }
+  else { btn.innerText = "➡️ 進入下一關"; }
+  document.getElementById('review-screen').style.display = 'flex';
+}
+
+function nextLevelOrRestart() {
+  document.getElementById('review-screen').style.display = 'none';
+  let correctCount = history.filter(h=>h.ok).length;
+  if(correctCount >= 3 && level < 5) { level++; } // 及格進下一關
+  q = 1; history = []; startTimer(); loadQ();
+}
+window.onload = () => { startTimer(); loadQ(); };
+</script>
+</body>
+</html>

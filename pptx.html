@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>數位時代創作者守護神：著作權與 AI</title>
+    <style>
+        :root {
+            --bg: #050509;
+            --glass: rgba(255, 255, 255, 0.05);
+            --border: rgba(255, 255, 255, 0.1);
+            --primary: #00f2fe;
+            --secondary: #4facfe;
+            --accent: #f1c40f;
+            --danger: #ff4757;
+            --success: #2ed573;
+            --text: #e0e6ed;
+        }
+
+        body, html {
+            margin: 0; padding: 0; height: 100%; overflow: hidden;
+            background-color: var(--bg);
+            font-family: "PingFang TC", "Microsoft JhengHei", sans-serif;
+            color: var(--text);
+        }
+
+        /* --- 動態科技背景 --- */
+        .space-bg {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at center, #1a2a6c 0%, #050509 100%);
+            z-index: -1;
+        }
+        .star {
+            position: absolute; background: white; border-radius: 50%;
+            animation: twinkle 2s infinite; opacity: 0.3;
+        }
+        @keyframes twinkle { 0%, 100% { opacity: 0.3; transform: scale(1); } 50% { opacity: 1; transform: scale(1.2); } }
+
+        /* --- 簡報結構 --- */
+        .presentation {
+            display: flex; width: 1000%; /* 10張 Slide */
+            height: 100%;
+            transition: transform 0.8s cubic-bezier(0.7, 0, 0.3, 1);
+        }
+
+        .slide {
+            width: 10%; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+            perspective: 1200px;
+        }
+
+        /* --- 玻璃卡片與動畫 --- */
+        .card {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: 40px;
+            padding: 60px;
+            width: 80%; max-width: 1100px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+            opacity: 0; transform: translateZ(-100px) rotateX(5deg);
+            transition: all 0.8s ease-out;
+        }
+
+        /* 激活狀態的動畫 */
+        .slide.active .card {
+            opacity: 1; transform: translateZ(0) rotateX(0deg);
+        }
+
+        h1 { font-size: 3.8rem; margin: 0 0 20px 0; background: linear-gradient(135deg, #fff 0%, var(--primary) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 10px rgba(0,242,254,0.3)); }
+        h2 { font-size: 2.2rem; color: var(--secondary); margin-bottom: 30px; border-left: 8px solid var(--primary); padding-left: 20px; }
+        p { font-size: 1.6rem; line-height: 1.8; margin: 0 0 20px 0; }
+
+        /* --- 文字重點動畫 (逐行浮現) --- */
+        .reveal { opacity: 0; transform: translateY(20px); transition: all 0.5s ease-out; }
+        .slide.active .reveal { opacity: 1; transform: translateY(0); }
+
+        /* 設定延遲 */
+        .del-1 { transition-delay: 0.4s; }
+        .del-2 { transition-delay: 0.7s; }
+        .del-3 { transition-delay: 1.0s; }
+        .del-4 { transition-delay: 1.3s; }
+        .del-5 { transition-delay: 1.6s; }
+
+        .highlight { color: var(--accent); font-weight: bold; }
+        .tag { background: rgba(0,242,254,0.1); border: 1px solid var(--primary); padding: 5px 15px; border-radius: 50px; font-size: 1.2rem; }
+
+        /* UI 元素 */
+        .controls { position: fixed; bottom: 30px; right: 40px; display: flex; gap: 15px; z-index: 1000; }
+        .btn { background: var(--glass); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 12px 25px; border-radius: 30px; cursor: pointer; backdrop-filter: blur(5px); transition: 0.3s; }
+        .btn:hover { background: white; color: var(--bg); transform: scale(1.05); }
+        .progress-bar { position: fixed; top: 0; left: 0; height: 6px; background: linear-gradient(90deg, var(--primary), #8b5cf6); transition: width 0.5s; z-index: 1000; }
+
+        /* 測驗樣式 */
+        .quiz-ans { margin-top: 15px; padding: 15px; background: rgba(46, 213, 115, 0.1); border-radius: 10px; border: 1px solid var(--success); display: none; color: var(--success); font-weight: bold; }
+        
+        /* 概念圖樣式 */
+        .concept-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 30px; }
+        .concept-item { background: rgba(255,255,255,0.03); padding: 25px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.05); transition: 0.3s; }
+        .concept-item:hover { background: rgba(255,255,255,0.08); transform: translateY(-5px); border-color: var(--primary); }
+    </style>
+</head>
+<body>
+
+<div class="space-bg" id="space"></div>
+<div class="progress-bar" id="bar"></div>
+
+<div class="presentation" id="stage">
+    <section class="slide active">
+        <div class="card" style="text-align:center;">
+            <span style="font-size: 5rem;">🛡️</span>
+            <h1>數位時代的創作守護者</h1>
+            <p class="highlight reveal del-1">著作權法與 AI 挑戰</p>
+            <p style="font-size: 1rem; opacity: 0.5; margin-top:50px;" class="reveal del-2">[按方向鍵 → 或按鈕翻頁]</p>
+        </div>
+    </section>
+
+    <section class="slide">
+        <div class="card">
+            <h2>第一單元：我的創作，誰來保護？</h2>
+            <p class="reveal del-1">【情境導入】</p>
+            <div class="reveal del-2" style="background: white; border-radius: 15px; padding: 10px; width: fit-content; margin: 0 auto;">
+                <svg width="200" height="150" viewBox="0 0 200 150">
+                    <path d="M50 80 Q 75 30, 100 80 T 150 80 Q 125 120, 100 100 T 50 80 Z" stroke="black" stroke-width="3" fill="none"/>
+                    <circle cx="80" cy="70" r="5" fill="black"/>
+                    <circle cx="120" cy="70" r="5" fill="black"/>
+                    <path d="M90 95 Q 100 105, 110 95" stroke="black" stroke-width="3" fill="none"/>
+                    <text x="70" y="140" font-family="Arial" font-size="12" fill="black">星期一 隨手畫</text>
+                </svg>
+            </div>
+            <p class="highlight reveal del-3" style="text-align:center; margin-top: 20px;">這張隨手塗鴉，受法律保護嗎？</p>
+        </div>
+    </section>
+
+    <section class="slide">
+        <div class="card">
+            <p>【關鍵 QA】</p>
+            <h1 class="reveal del-1">這張圖需要去政府蓋章登記<br>才有版權嗎？</h1>
+            <h1 class="reveal del-2" style="color: var(--danger); font-size: 5rem; text-align:center; -webkit-text-fill-color: var(--danger);">絕對不需要！</h1>
+        </div>
+    </section>
+
+    <section class="slide">
+        <div class="card">
+            <h2>第一單元：教學重點</h2>
+            <div class="concept-item reveal del-1" style="margin-bottom: 20px;">
+                <h3>✨ <span class="highlight">創作保護主義</span></h3>
+                <p style="font-size: 1.3rem;">著作完成時<span class="highlight">「自動」取得權利</span>，不需要註冊或登記。</p>
+            </div>
+            <div class="concept-item reveal del-2">
+                <h3>立法的目的</h3>
+                <p style="font-size: 1.3rem;">保障創作者的權益，鼓勵更多人投入創作。</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="slide">
+        <div class="card">
+            <h2>第二單元：著作權的雙胞胎</h2>
+            <div class="concept-grid">
+                <div class="concept-item reveal del-1" style="border-top: 5px solid #ff4757;">
+                    <h3 style="color: #ff4757; text-align:center;">❤️ 人格權</h3>
+                    <p style="font-size: 1.1rem; text-align:center;">(名聲的守護者)</p>
+                </div>
+                <div class="concept-item reveal del-2" style="border-top: 5px solid #2ed573;">
+                    <h3 style="color: #2ed573; text-align:center;">💰 財產權</h3>
+                    <p style="font-size: 1.1rem; text-align:center;">(錢包的守護者)</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="slide">
+        <div class="card">
+            <h2>第二單元：教學重點</h2>
+            <p class="reveal del-1"><span class="tag" style="border-color: #ff4757; color: #ff4757;">著作人格權</span>：專屬於創作者本人。<br>特性：不可讓與、不可繼承（像姓名一樣）。</p>
+            <p class="reveal del-2"><span class="tag" style="border-color: #2ed573; color: #2ed573;">著作財產權</span>：包含：重製、改作、公開傳輸等。<br>特性：可以授權給人用，換取<span class="highlight">經濟利益</span>。</p>
+            <p class="reveal del-3">📅 保護期限：<span class="highlight">生存期間 + 死後 50 年</span>。</p>
+        </div>
+    </section>
+
+    <section class="slide">
+        <div class="card">
+            <h2>第三單元：數位時代的變革——網路與傳輸</h2>
+            <p class="reveal del-1">【互動提問】</p>
+            <h3 class="highlight reveal del-2" style="font-size: 1.8rem; text-align:center;">在 IG 轉發圖、YT 翻唱歌曲，涉及哪種權利？</h3>
+            <div class="concept-item reveal del-3" style="margin-top: 20px;">
+                <h3>📡 公開傳輸權</h3>
+                <p style="font-size: 1.2rem;">數位科技讓資訊交換變快，法律也隨之調整。</p>
+                <p style="font-size: 1.2rem;" class="highlight">「科技走在法律前面」：利用方式隨時在變，權利範圍也會調整。</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="slide">
+        <div class="card">
+            <h2>第四單元：生成式 AI 的大哉問 (重點)</h2>
+            <p class="reveal del-1">【趨勢介紹】什麼是生成式 AI？（對話、文章、影像...）</p>
+            <p class="reveal del-2">【法律見解分享】</p>
+            <p class="reveal del-3">1. 訓練爭議：AI 抓取網路作品訓練，可能侵害<span class="highlight">重製權</span>。</p>
+            <p class="reveal del-4">2. 誰是作者？AI 生成內容受保護的關鍵在於：是否有<br><span style="font-size: 3rem; font-weight: bold; color: var(--primary);">「人類精神創作」</span>？</p>
+            <p class="reveal del-5" style="font-size: 1.2rem;">純指令產出 --> <span style="color:var(--danger)">傾向不保護</span>。人類高度创意參與 --> <span style="color:var(--success)">可能受保護</span>。</p>
+        </div>
+    </section>
+
+    <section class="slide">
+        <div class="card">
+            <h2>第五單元：隨堂互動小測驗 (總結)</h2>
+            <p>測驗 1：小明去世後 60 年，出版社可以不付錢印他的書嗎？</p>
+            <button class="btn reveal del-1" onclick="showAns('ans1')">顯示答案</button>
+            <div class="quiz-ans" id="ans1">可以，已過 50 年保護期。</div>
+            
+            <p style="margin-top: 30px;">測驗 2：我可以把正版 CD 轉錄成 MP3 放在網路上給網友下載嗎？</p>
+            <button class="btn reveal del-2" onclick="showAns('ans2')">顯示答案</button>
+            <div class="quiz-ans" id="ans2">不行，侵害公開傳輸權。</div>
+        </div>
+    </section>
+
+    <section class="slide">
+        <div class="card" style="text-align:center;">
+            <span style="font-size: 5rem;">🚀</span>
+            <h1>數位公民，尊重原創</h1>
+            <p>保護自己的創意，也尊重他人的心血。</p>
+            <button class="btn" style="font-size: 1.2rem; margin-top: 30px;" onclick="goto(0)">重新播放</button>
+        </div>
+    </section>
+</div>
+
+<div class="controls">
+    <button class="btn" onclick="change(-1)">上一步</button>
+    <button class="btn" onclick="change(1)">下一步</button>
+</div>
+
+<script>
+    // 產生星空背景
+    const space = document.getElementById('space');
+    for (let i = 0; i < 100; i++) {
+        const star = document.createElement('div');
+        star.className = 'star';
+        star.style.width = star.style.height = Math.random() * 3 + 'px';
+        star.style.top = Math.random() * 100 + '%';
+        star.style.left = Math.random() * 100 + '%';
+        star.style.animationDelay = Math.random() * 2 + 's';
+        space.appendChild(star);
+    }
+
+    // 簡報控制
+    let curIdx = 0;
+    const totalSlides = 10;
+    const stage = document.getElementById('stage');
+    const bar = document.getElementById('bar');
+    const slides = document.querySelectorAll('.slide');
+
+    function updateUI() {
+        stage.style.transform = `translateX(-${curIdx * 10}%)`;
+        bar.style.width = `${((curIdx + 1) / totalSlides) * 100}%`;
+        
+        // 切換 active class 以觸發動畫
+        slides.forEach((s, i) => {
+            if (i === curIdx) s.classList.add('active');
+            else s.classList.remove('active');
+        });
+
+        // 重置測驗答案顯示
+        document.querySelectorAll('.quiz-ans').forEach(a => a.style.display = 'none');
+    }
+
+    function change(step) {
+        curIdx += step;
+        if (curIdx < 0) curIdx = 0;
+        if (curIdx >= totalSlides) curIdx = totalSlides - 1;
+        updateUI();
+    }
+
+    function goto(idx) {
+        curIdx = idx;
+        updateUI();
+    }
+
+    function showAns(id) {
+        document.getElementById(id).style.display = 'block';
+    }
+
+    // 鍵盤控制
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight' || e.key === ' ') change(1);
+        if (e.key === 'ArrowLeft') change(-1);
+    });
+
+    // 初始化第一頁的 active 狀態
+    slides[0].classList.add('active');
+    bar.style.width = '10%';
+</script>
+
+</body>
+</html>

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>深海潛艦——聲納尋寶</title>
+    <style>
+        body { background-color: #02101a; color: #4af626; font-family: 'Courier New', Courier, monospace; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        h1 { text-shadow: 0 0 10px #4af626; margin-bottom: 5px; }
+        #game-container { background-color: #04202c; border: 2px solid #4af626; border-radius: 50%; padding: 40px; box-shadow: 0 0 30px rgba(74,246,38,0.3); width: 450px; height: 450px; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        #ui-panel { background-color: rgba(0,0,0,0.8); border: 1px solid #4af626; padding: 15px; border-radius: 10px; width: 400px; text-align: center; margin-top: 20px; z-index: 10; }
+        canvas { background-color: #010a10; border-radius: 50%; position: absolute; top: 40px; left: 40px; box-shadow: inset 0 0 20px #4af626; }
+        .info { display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: bold; border-bottom: 1px dashed #4af626; padding-bottom: 5px; }
+        input { background: #000; color: #4af626; border: 1px solid #4af626; width: 40px; text-align: center; font-family: inherit; font-size: 16px; margin: 0 5px; }
+        button { background: #04202c; color: #4af626; border: 1px solid #4af626; padding: 5px 15px; cursor: pointer; font-family: inherit; font-weight: bold; transition: 0.2s; margin: 3px; }
+        button:hover { background: #4af626; color: #000; }
+        .hidden { display: none !important; }
+        #feedback { margin-top: 10px; height: 20px; font-weight: bold; }
+        /* 掃描線動畫 */
+        .scanline { position: absolute; width: 100%; height: 2px; background: rgba(74,246,38,0.5); top: 0; left: 0; animation: scan 3s linear infinite; pointer-events: none; z-index: 5; }
+        @keyframes scan { 0% { top: 0%; } 100% { top: 100%; } }
+    </style>
+</head>
+<body>
+    <h1>⚓ 聲納尋寶大作戰</h1>
+    <div id="game-container">
+        <canvas id="sonar" width="450" height="450"></canvas>
+        <div class="scanline"></div>
+    </div>
+    
+    <div id="ui-panel">
+        <div class="info">
+            <span id="level-txt">第 1 關</span>
+            <span id="progress-txt">進度: 1/5</span>
+            <span id="score-txt">積分: 0</span>
+        </div>
+        <div id="instruction" style="min-height: 40px; margin-bottom: 10px;">載入中...</div>
+        
+        <div id="control-area"></div>
+        <div id="feedback"></div>
+        <button id="next-btn" class="hidden" onclick="nextStep()">下一步</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('sonar');
+        const ctx = canvas.getContext('2d');
+        const size = 450, margin = 25, origin = size/2, step = (size - 2*margin)/10;
+        
+        let level = 1, q = 1, score = 0, isAnswered = false;
+        let tX = 0, tY = 0, sX = 0, sY = 0; // target and start coords
+
+        function rand(min, max, exclude=[]) {
+            let n; do { n = Math.floor(Math.random() * (max - min + 1)) + min; } while(exclude.includes(n)); return n;
+        }
+
+        function drawGrid() {
+            ctx.clearRect(0,0,size,size);
+            // 畫同心圓(雷達感)
+            ctx.strokeStyle = '#0a361a'; ctx.lineWidth = 1;
+            for(let i=1; i<=5; i++) { ctx.beginPath(); ctx.arc(origin, origin, i*step, 0, Math.PI*2); ctx.stroke(); }
+            // 畫十字坐標軸
+            ctx.strokeStyle = '#4af626'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(margin, origin); ctx.lineTo(size-margin, origin); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(origin, margin); ctx.lineTo(origin, size-margin); ctx.stroke();
+            // 標數字
+            ctx.fillStyle = '#1e7514'; ctx.font = '10px Courier';
+            for(let i=-5; i<=5; i++) {
+                if(i!==0) {
+                    ctx.fillText(i, origin + i*step - 4, origin + 12);
+                    ctx.fillText(i, origin + 5, origin - i*step + 4);
+                }
+            }
+        }
+
+        function drawPoint(x, y, color, icon) {
+            const px = origin + x * step, py = origin - y * step;
+            ctx.fillStyle = color; ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#fff'; ctx.font = '14px Arial'; ctx.fillText(icon, px-7, py-10);
+        }
+
+        function getQuadrant(x, y) {
+            if(x>0 && y>0) return '第一象限'; if(x<0 && y>0) return '第二象限';
+            if(x<0 && y<0) return '第三象限'; if(x>0 && y<0) return '第四象限';
+            return '坐標軸上';
+        }
+
+        function loadQuestion() {
+            isAnswered = false;
+            document.getElementById('level-txt').innerText = `第 ${level} 關`;
+            document.getElementById('progress-txt').innerText = `進度: ${q}/5`;
+            document.getElementById('feedback').innerText = '';
+            document.getElementById('next-btn').classList.add('hidden');
+            const ctrl = document.getElementById('control-area');
+            const inst = document.getElementById('instruction');
+            canvas.onclick = null; canvas.style.cursor = 'default';
+
+            drawGrid();
+
+            if (level === 1) { // 讀坐標
+                tX = rand(-5,5); tY = rand(-5,5);
+                inst.innerHTML = "發現寶藏訊號！請讀取它的坐標。";
+                drawPoint(tX, tY, '#ffeb3b', '💎');
+                ctrl.innerHTML = `坐標 (<input id="ix">, <input id="iy">) <button onclick="checkL1()">鎖定</button>`;
+            } 
+            else if (level === 2) { // 點擊畫布
+                tX = rand(-5,5); tY = rand(-5,5);
+                inst.innerHTML = `請在聲納上點擊發射探測儀至 <b>(${tX}, ${tY})</b>`;
+                ctrl.innerHTML = '';
+                canvas.style.cursor = 'crosshair';
+                canvas.onclick = (e) => {
+                    if(isAnswered) return;
+                    const r = canvas.getBoundingClientRect();
+                    let mx = Math.round((e.clientX - r.left - origin)/step);
+                    let my = Math.round((origin - (e.clientY - r.top))/step);
+                    mx = Math.max(-5, Math.min(5, mx)); my = Math.max(-5, Math.min(5, my));
+                    checkL2(mx, my);
+                };
+            }
+            else if (level === 3) { // 坐標軸
+                let type = rand(1,3); // 1:x, 2:y, 3:origin
+                if(type===1) { tX = rand(-5,5,[0]); tY = 0; }
+                else if(type===2) { tX = 0; tY = rand(-5,5,[0]); }
+                else { tX=0; tY=0; }
+                inst.innerHTML = `偵測到不明物體位於 <b>(${tX}, ${tY})</b>，它在哪個區域？`;
+                drawPoint(tX, tY, '#f44336', '🦑');
+                ctrl.innerHTML = `
+                    <button onclick="checkL3('X軸')">X 軸 (赤道洋流)</button>
+                    <button onclick="checkL3('Y軸')">Y 軸 (本初海溝)</button>
+                    <button onclick="checkL3('原點')">原點 (基地)</button>
+                `;
+            }
+            else if (level === 4) { // 象限
+                tX = rand(-5,5,[0]); tY = rand(-5,5,[0]); // 不出坐標軸
+                inst.innerHTML = `目標坐標 <b>(${tX}, ${tY})</b> 屬於哪片海域(象限)？`;
+                drawPoint(tX, tY, '#03a9f4', '🐋');
+                ctrl.innerHTML = `
+                    <button onclick="checkL4('第一象限')">第一</button>
+                    <button onclick="checkL4('第二象限')">第二</button>
+                    <button onclick="checkL4('第三象限')">第三</button>
+                    <button onclick="checkL4('第四象限')">第四</button>
+                `;
+            }
+            else if (level === 5) { // 平移
+                sX = rand(-3,3); sY = rand(-3,3);
+                let dx = rand(-2,2,[0]), dy = rand(-2,2,[0]);
+                tX = sX + dx; tY = sY + dy;
+                let dxStr = dx>0 ? `向右 ${dx}` : `向左 ${Math.abs(dx)}`;
+                let dyStr = dy>0 ? `向上 ${dy}` : `向下 ${Math.abs(dy)}`;
+                inst.innerHTML = `潛艦目前在 <b>(${sX}, ${sY})</b>。<br>警報！請 ${dxStr}，再 ${dyStr}！`;
+                drawPoint(sX, sY, '#4af626', '⚓');
+                ctrl.innerHTML = `新坐標 (<input id="ix">, <input id="iy">) <button onclick="checkL5()">移動</button>`;
+            }
+        }
+
+        function showRes(isWin, msg) {
+            isAnswered = true;
+            document.getElementById('feedback').innerHTML = `<span style="color:${isWin?'#4af626':'#f44336'}">${isWin?'✅ ':'❌ '}${msg}</span>`;
+            if(isWin) { score += 10; document.getElementById('score-txt').innerText = `積分: ${score}`; }
+            let btn = document.getElementById('next-btn');
+            btn.classList.remove('hidden');
+            btn.innerText = (q===5 && level===5) ? "完成任務" : (q===5 ? "進入下一關" : "下一題");
+        }
+
+        function checkL1() {
+            let x = parseInt(document.getElementById('ix').value), y = parseInt(document.getElementById('iy').value);
+            if(isNaN(x) || isNaN(y)) return showRes(false, "請輸入數字");
+            if(x===tX && y===tY) showRes(true, "精準鎖定！"); else showRes(false, `錯誤！正確為 (${tX}, ${tY})`);
+        }
+        function checkL2(mx, my) {
+            if(mx===tX && my===tY) { showRes(true, "探測儀成功抵達！"); drawPoint(mx, my, '#4af626', '📍'); }
+            else { showRes(false, `偏離目標！你點了 (${mx}, ${my})`); drawPoint(mx, my, '#f44336', '❌'); drawPoint(tX, tY, '#4af626', '📍'); }
+        }
+        function checkL3(ans) {
+            let real = (tX===0 && tY===0) ? '原點' : (tY===0 ? 'X軸' : 'Y軸');
+            if(ans===real) showRes(true, "判斷正確！"); else showRes(false, `錯誤，它位於 ${real}。`);
+        }
+        function checkL4(ans) {
+            let real = getQuadrant(tX, tY);
+            if(ans===real) showRes(true, "海域辨識正確！"); else showRes(false, `錯誤，位於 ${real}。`);
+        }
+        function checkL5() {
+            let x = parseInt(document.getElementById('ix').value), y = parseInt(document.getElementById('iy').value);
+            if(isNaN(x) || isNaN(y)) return showRes(false, "請輸入數字");
+            if(x===tX && y===tY) { showRes(true, "成功規避暗礁！"); drawPoint(tX, tY, '#ff9800', '✨'); }
+            else { showRes(false, `撞毀！正確新坐標為 (${tX}, ${tY})`); drawPoint(tX, tY, '#ff9800', '✨'); drawPoint(x, y, '#f44336', '💥'); }
+        }
+
+        function nextStep() {
+            if(q < 5) { q++; loadQuestion(); }
+            else { 
+                if(level < 5) { level++; q=1; loadQuestion(); }
+                else { document.getElementById('ui-panel').innerHTML = `<h2 style="color:#ffeb3b">🎉 恭喜完成所有尋寶任務！</h2><p>最終積分: ${score}</p><button onclick="location.reload()">再玩一次</button>`; }
+            }
+        }
+        window.onload = loadQuestion;
+    </script>
+</body>
+</html>
