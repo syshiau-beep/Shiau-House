@@ -203,7 +203,7 @@
         </div>
     </div>
 
-    <script>
+<script>
         // 遊戲核心變數
         const canvas = document.getElementById('radar');
         const ctx = canvas.getContext('2d');
@@ -517,13 +517,55 @@
                 currentLevel++;
                 currentQuestion = 1;
                 if (currentLevel > 5) {
-                    // 破關
+                    // 破關結算畫面
                     document.getElementById('game-content').style.display = 'none';
-                    document.getElementById('victory-screen').style.display = 'block';
+                    let victoryScreen = document.getElementById('victory-screen');
+                    victoryScreen.style.display = 'block';
+
+                    // ★ 判斷是否全對 (5關 * 3題 * 10分 = 滿分 150分)
+                    if (score === 150) {
+                        localStorage.setItem('game2_cleared', 'true'); // 標記第二關已通關
+                        victoryScreen.innerHTML = `
+                            <h2 style="color: var(--accent-yellow); font-size: 2em;">🎉 恭喜成為特級領航員！</h2>
+                            <div style="background:#fff3e0; padding:20px; text-align:center; margin:20px auto; border:3px dashed #ff9800; border-radius:10px; color:#333; max-width:80%;">
+                                <b>🎉 完美通關！取得下一關密鑰：<br><br><span style="color:red; font-size:2em; letter-spacing: 3px;">SPACE77</span></b>
+                            </div>
+                            <button onclick="window.location.href='index.html'" style="margin-top: 20px; font-size: 1.2em; background-color:#10b981; color:#fff; border:none; padding:10px 20px; border-radius:5px; cursor:pointer;">🏆 回到大廳解鎖下一關</button>
+                        `;
+                    } else {
+                        // 沒有滿分的懲罰畫面
+                        victoryScreen.innerHTML = `
+                            <h2 style="color: var(--accent-red); font-size: 2em;">⚠️ 導航數據有誤</h2>
+                            <p style="font-size: 1.2em; line-height: 1.6;">
+                                你的最終積分是：<span style="color:var(--accent-yellow); font-weight:bold;">${score} / 150</span><br>
+                                必須達到 150 分 (一題都不能錯) 才能獲得通關密鑰！
+                            </p>
+                            <button onclick="restartGame()" style="margin-top: 20px; font-size: 1.2em; background-color:#2563eb; color:white; border:none; padding:10px 20px; border-radius:5px; cursor:pointer;">🔄 重新挑戰</button>
+                        `;
+                    }
                 } else {
                     loadQuestion();
                 }
             }
+        }
+
+        // === 重新挑戰 (不重整網頁，直接產生新題目) ===
+        function restartGame() {
+            // 1. 數值歸零
+            currentLevel = 1;
+            currentQuestion = 1;
+            score = 0;
+            isAnswered = false;
+            
+            // 2. 更新畫面積分
+            document.getElementById('score').innerText = score;
+            
+            // 3. 切換畫面顯示 (隱藏結算畫面，顯示遊戲畫面)
+            document.getElementById('victory-screen').style.display = 'none';
+            document.getElementById('game-content').style.display = 'block';
+            
+            // 4. 重新載入第 1 關的題目
+            loadQuestion();
         }
 
         // === 繪圖相關 ===
@@ -594,12 +636,11 @@
             ctx.setLineDash([5, 5]); // 虛線模式
             ctx.beginPath();
             ctx.moveTo(px1, py1);
-            // 先水平走再垂直走 (或是直接連線，這裡為了表現出移動過程，畫出折線)
+            // 先水平走再垂直走
             ctx.lineTo(px2, py1);
             ctx.lineTo(px2, py2);
             ctx.stroke();
             ctx.setLineDash([]); // 恢復實線模式
         }
-    </script>
-</body>
+</script></body>
 </html>

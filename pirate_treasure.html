@@ -131,22 +131,54 @@ function check(type, cx, cy) {
 function showReview(title) {
   document.getElementById('review-title').innerText = title;
   let list = document.getElementById('review-list'); list.innerHTML = ""; let cc = 0;
+  
+  // 計算答對題數
   history.forEach(h => {
     if(h.ok) cc++;
     list.innerHTML += `<div class="review-item"><b style="color:#3e2723">Q${h.q}: ${h.desc}</b><br>
       作答: <span class="${h.ok?'correct':'wrong'}">${h.uAns} ${h.ok?'(命中)':'(偏離)'}</span><br>正確: ${h.cAns}</div>`;
   });
-  list.innerHTML = `<h3 style="margin-top:0">尋寶正確率: ${cc}/5</h3>` + list.innerHTML;
+  list.innerHTML = `<h3 style="margin-top:0; text-align:center;">尋寶正確率: ${cc}/5</h3>` + list.innerHTML;
+  
   let btn = document.getElementById('review-btn');
-  if(level === 5 && cc > 0) { btn.innerText = "🏆 成為海盜王 (重新開始)"; btn.onclick = () => location.reload(); }
-  else if(cc < 3) { btn.innerText = "🔄 迷失方向，重新本關"; } else { btn.innerText = "➡️ 前往下一張海圖"; }
+  // 預設按鈕點擊後會觸發重玩或晉級
+  btn.onclick = () => nextLevelOrRestart();
+
+  // ==========================================
+  // ★ 密室逃脫大廳核心邏輯：滿分才給密鑰
+  // ==========================================
+  if(level === 5 && cc === 5) { 
+    localStorage.setItem('game4_cleared', 'true'); // 標記第四關已通關
+    list.innerHTML += `
+      <div style="background:#fff3e0; padding:15px; text-align:center; margin-top:15px; border:2px dashed #ffb300; border-radius:5px;">
+        <b style="color:#3e2723;">🎉 完美尋寶！取得下一關密鑰：<br><span style="color:#c62828; font-size:1.5em; letter-spacing: 2px;">GOLD168</span></b>
+      </div>`;
+    btn.innerText = "🏆 回到大廳解鎖下一關"; 
+    btn.onclick = () => window.location.href = 'index.html'; 
+  } 
+  else if(cc < 5) { 
+    btn.innerText = "🔄 必須 5 題全中！重新挑戰本關"; 
+  } 
+  else { 
+    btn.innerText = "➡️ 完美過關！前往下一張海圖"; 
+  }
+  // ==========================================
+
   document.getElementById('review-screen').style.display = 'flex';
 }
 
 function nextLevelOrRestart() {
   document.getElementById('review-screen').style.display = 'none';
-  if(history.filter(h=>h.ok).length >= 3 && level < 5) level++; 
-  q = 1; history = []; startTimer(); loadQ();
+  
+  // ★ 修改點：必須 5 題全對才能進入下一關
+  if(history.filter(h=>h.ok).length === 5 && level < 5) {
+      level++; 
+  } 
+  
+  q = 1; 
+  history = []; 
+  startTimer(); 
+  loadQ();
 }
 window.onload = () => { startTimer(); loadQ(); };
 </script>

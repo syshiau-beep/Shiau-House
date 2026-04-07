@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>直角坐標終極密室逃脫</title>
+<style>
+  body { font-family: '微軟正黑體', sans-serif; background-color: #1a1a2e; color: #fff; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; }
+  header { background: linear-gradient(135deg, #16213e 0%, #0f3460 100%); width: 100%; padding: 20px 0; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.5); margin-bottom: 30px; border-bottom: 3px solid #e94560; }
+  header h1 { margin: 0; font-size: 2.5em; color: #e94560; text-shadow: 2px 2px 4px #000; }
+  
+  /* 總計時器面板 */
+  #global-timer-panel { background: rgba(0, 0, 0, 0.6); display: inline-block; padding: 10px 20px; border-radius: 30px; margin-top: 15px; border: 2px solid #4facfe; font-size: 1.2em; font-family: monospace; letter-spacing: 2px; }
+  .btn-reset { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 0.8em; margin-left: 15px; }
+
+  .game-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; width: 90%; max-width: 1000px; padding-bottom: 50px; }
+  .game-card { background: #16213e; border-radius: 15px; padding: 25px; text-decoration: none; color: inherit; text-align: center; box-shadow: 0 6px 15px rgba(0,0,0,0.3); transition: all 0.3s ease; border: 2px solid transparent; cursor: pointer; position: relative; }
+  .game-card:hover:not(.locked) { transform: translateY(-10px); box-shadow: 0 15px 25px rgba(233, 69, 96, 0.4); border-color: #e94560; }
+  .game-icon { font-size: 4em; margin-bottom: 15px; }
+  .game-title { font-size: 1.4em; font-weight: bold; color: #4facfe; margin-bottom: 10px; }
+  
+  /* 上鎖特效 */
+  .locked { filter: grayscale(100%) brightness(0.5); cursor: not-allowed; }
+  .lock-icon { position: absolute; top: 15px; right: 15px; font-size: 1.5em; text-shadow: 0 0 5px #000; }
+  
+  /* 狀態標籤 */
+  .status-badge { position: absolute; top: 15px; left: 15px; font-size: 0.8em; padding: 3px 8px; border-radius: 10px; font-weight: bold; }
+  .status-done { background: #2ecc71; color: #000; }
+</style>
+</head>
+<body>
+
+  <header>
+    <h1>🌌 直角坐標：終極逃脫任務</h1>
+    <div id="global-timer-panel">
+      ⏱️ 總耗時: <span id="total-time">00:00:00</span>
+      <button class="btn-reset" onclick="resetAll()">重新開始任務</button>
+    </div>
+  </header>
+
+  <div class="game-grid">
+    <a onclick="enterGame('game1', 'bug_safari.html', '')" class="game-card" id="card-game1">
+      <div class="game-icon">🦋</div>
+      <div class="game-title">1. 昆蟲生態觀察家</div>
+    </a>
+
+    <a onclick="enterGame('game2', 'space_navigator.html', 'BUG999')" class="game-card locked" id="card-game2">
+      <div class="lock-icon" id="lock-game2">🔒</div><div class="game-icon">🚀</div>
+      <div class="game-title">2. 星際領航員</div>
+    </a>
+
+    <a onclick="enterGame('game3', 'pizza_delivery.html', 'SPACE77')" class="game-card locked" id="card-game3">
+      <div class="lock-icon" id="lock-game3">🔒</div><div class="game-icon">🍕</div>
+      <div class="game-title">3. 瘋狂披薩外送員</div>
+    </a>
+
+    <a onclick="enterGame('game4', 'pirate_treasure.html', 'PIZZA88')" class="game-card locked" id="card-game4">
+      <div class="lock-icon" id="lock-game4">🔒</div><div class="game-icon">🏴‍☠️</div>
+      <div class="game-title">4. 海盜尋寶記</div>
+    </a>
+
+    <a onclick="enterGame('game5', 'cyber_agent.html', 'GOLD168')" class="game-card locked" id="card-game5">
+      <div class="lock-icon" id="lock-game5">🔒</div><div class="game-icon">🕵️‍♂️</div>
+      <div class="game-title">5. 城市特務</div>
+    </a>
+
+    <a onclick="enterGame('game6', 'treasure.html', 'CYBER404')" class="game-card locked" id="card-game6">
+      <div class="lock-icon" id="lock-game6">🔒</div><div class="game-icon">🧙‍♂️</div>
+      <div class="game-title">6. 魔法密室逃脫</div>
+    </a>
+  </div>
+
+<script>
+let globalTimerInterval;
+
+window.onload = () => {
+  // 檢查解鎖狀態
+  ['game1', 'game2', 'game3', 'game4', 'game5', 'game6'].forEach(gameId => {
+    if (localStorage.getItem(gameId) === 'unlocked' || gameId === 'game1') {
+      unlockVisuals(gameId);
+      if(localStorage.getItem(gameId + '_cleared') === 'true') {
+        document.getElementById('card-' + gameId).innerHTML += `<div class="status-badge status-done">✅ 已通關</div>`;
+      }
+    }
+  });
+  updateTimerDisplay();
+  // 如果已經開始且還沒結束，讓計時器繼續跑
+  if (localStorage.getItem('escapeStartTime') && !localStorage.getItem('escapeEndTime')) {
+    globalTimerInterval = setInterval(updateTimerDisplay, 1000);
+  }
+};
+
+function enterGame(gameId, targetUrl, correctKey) {
+  // 第一關特別處理：點擊就開始總計時
+  if (gameId === 'game1' && !localStorage.getItem('escapeStartTime')) {
+    localStorage.setItem('escapeStartTime', Date.now());
+    globalTimerInterval = setInterval(updateTimerDisplay, 1000);
+  }
+
+  // 已經解鎖過直接進
+  if (localStorage.getItem(gameId) === 'unlocked' || gameId === 'game1') {
+    window.location.href = targetUrl;
+    return;
+  }
+  
+  // 未解鎖則要求輸入密碼
+  let userKey = prompt("🔒 請輸入上一關取得的「通關密鑰」：");
+  if (userKey === null) return; 
+  
+  if (userKey.trim().toUpperCase() === correctKey.toUpperCase()) {
+    alert("✅ 密鑰正確！解鎖成功！");
+    localStorage.setItem(gameId, 'unlocked');
+    unlockVisuals(gameId);
+    window.location.href = targetUrl;
+  } else {
+    alert("❌ 密鑰錯誤！請確認您已完美通關上一關。");
+  }
+}
+
+function unlockVisuals(gameId) {
+  let card = document.getElementById('card-' + gameId);
+  let lock = document.getElementById('lock-' + gameId);
+  if (card) card.classList.remove('locked');
+  if (lock) lock.style.display = 'none';
+}
+
+function updateTimerDisplay() {
+  let startTime = localStorage.getItem('escapeStartTime');
+  let endTime = localStorage.getItem('escapeEndTime');
+  if (!startTime) return;
+
+  let now = endTime ? parseInt(endTime) : Date.now();
+  let diff = Math.floor((now - parseInt(startTime)) / 1000); // 轉換為秒
+
+  let h = String(Math.floor(diff / 3600)).padStart(2, '0');
+  let m = String(Math.floor((diff % 3600) / 60)).padStart(2, '0');
+  let s = String(diff % 60).padStart(2, '0');
+  
+  document.getElementById('total-time').innerText = `${h}:${m}:${s}`;
+  if (endTime && globalTimerInterval) {
+    clearInterval(globalTimerInterval);
+    document.getElementById('global-timer-panel').style.borderColor = "#2ecc71"; // 結束變綠框
+  }
+}
+
+function resetAll() {
+  if(confirm("⚠️ 確定要清除所有紀錄與時間，重新開始挑戰嗎？")) {
+    localStorage.clear();
+    location.reload();
+  }
+}
+</script>
+</body>
+</html>

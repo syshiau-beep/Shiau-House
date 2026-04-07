@@ -142,16 +142,51 @@
             else show(false, `計算錯誤，目標在 (${ansData.x}, ${ansData.y})。`);
         }
 
-        function next() {
-            if(q < 5) { q++; loadQ(); }
+function next() {
+            if(q < 5) { 
+                q++; 
+                loadQ(); 
+            }
             else {
-                if(lvl < 5) { lvl++; q=1; loadQ(); }
+                if(lvl < 5) { 
+                    lvl++; 
+                    q=1; 
+                    loadQ(); 
+                }
                 else {
-                    document.getElementById('terminal').innerHTML = `<h2 style="color:#00f0ff;text-align:center;">系統離線</h2><p style="text-align:center;font-size:1.2em;">特務已全數落網。<br>總獲取積分: ${pts}</p><div style="text-align:center;"><button onclick="location.reload()">重啟系統</button></div>`;
+                    // ==========================================
+                    // ★ 密室逃脫大廳核心邏輯：滿分(500分)才給密鑰
+                    // ==========================================
+                    if (pts === 500) { 
+                        localStorage.setItem('game5_cleared', 'true'); // 標記第五關已通關
+                        
+                        document.getElementById('terminal').innerHTML = `
+                            <h2 style="color:#00f0ff; text-align:center; text-shadow: 0 0 10px #00f0ff; letter-spacing: 2px;">任務完成：城市安全</h2>
+                            <div style="background:rgba(0, 240, 255, 0.1); padding:20px; text-align:center; margin:20px 0; border:2px dashed #00f0ff; border-radius:5px;">
+                                <span style="color:#fff; font-size:1.1em;">完美通關！所有特務均已落網。</span><br><br>
+                                取得最終檔案密鑰：<br>
+                                <span style="color:#ff003c; font-size:2.5em; font-weight:bold; letter-spacing:4px; text-shadow: 0 0 15px #ff003c;">CYBER404</span>
+                            </div>
+                            <div style="text-align:center; margin-top:25px;">
+                                <button onclick="window.location.href='index.html'" style="background:#00f0ff; color:#0d0221; font-size:1.2em;">🏆 回大廳解鎖最終關卡</button>
+                            </div>
+                        `;
+                    } else {
+                        // 沒有滿分的懲罰畫面
+                        document.getElementById('terminal').innerHTML = `
+                            <h2 style="color:#ff003c; text-align:center; text-shadow: 0 0 10px #ff003c; letter-spacing: 2px;">任務失敗：資料缺漏</h2>
+                            <p style="text-align:center; font-size:1.2em; color:#fff; line-height:1.8;">
+                                你的最終積分是：<span style="color:#ffeb3b; font-weight:bold; font-size:1.5em;">${pts} / 500</span><br>
+                                必須達到 500 分 (零失誤) 才能取得最高權限密鑰！
+                            </p>
+                            <div style="text-align:center; margin-top:25px;">
+                                <button onclick="location.reload()" style="background:#ff003c; color:#fff; font-size:1.2em; box-shadow: 0 0 10px #ff003c;">🔄 重啟系統 (重新挑戰)</button>
+                            </div>
+                        `;
+                    }
                 }
             }
         }
-
         window.onload = loadQ;
     </script>
 </body>

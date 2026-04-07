@@ -227,14 +227,15 @@
             </div>
         </div>
 
-        <div id="victory-screen">
+	<div id="victory-screen">
             <h2>🎉 封印解除！</h2>
             <div class="treasure-icon">💎👑📜</div>
             <p style="font-size: 1.2em; line-height: 1.6;">
                 恭喜你！你展現了卓越的幾何與代數推理能力，<br>
                 成功解開了笛卡兒留下的所有謎題，獲得了傳說中的數學寶藏！
             </p>
-            <button class="action-btn" style="margin-top: 20px;" onclick="location.reload()">再玩一次</button>
+            
+            <button class="action-btn" style="margin-top: 20px; background-color: var(--success); color: #1a0b2e;" onclick="window.location.href='index.html'">🏆 領取最終成績 (回大廳)</button>
         </div>
     </div>
 
@@ -443,9 +444,19 @@
                 // 破關
                 document.getElementById('game-content').style.display = 'none';
                 document.getElementById('victory-screen').style.display = 'block';
+                
+                // ==========================================
+                // ★ 密室逃脫大廳終局邏輯：停止總計時器
+                // ==========================================
+                // 如果還沒有紀錄結束時間，就紀錄當下時間 (停止大廳計時器)
+                if (!localStorage.getItem('escapeEndTime')) {
+                    localStorage.setItem('escapeEndTime', Date.now());
+                }
+                // 標記第六關已通關
+                localStorage.setItem('game6_cleared', 'true'); 
+                // ==========================================
             }
         }
-
         // 遊戲初始化
         window.onload = () => {
             loadLevel(0);
