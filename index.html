@@ -9,6 +9,14 @@
   header { background: linear-gradient(135deg, #16213e 0%, #0f3460 100%); width: 100%; padding: 20px 0; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.5); margin-bottom: 30px; border-bottom: 3px solid #e94560; }
   header h1 { margin: 0; font-size: 2.5em; color: #e94560; text-shadow: 2px 2px 4px #000; }
   
+  /* 學生報到區樣式 */
+  #student-section { margin-top: 15px; margin-bottom: 5px; }
+  .student-input { background: rgba(0,0,0,0.5); border: 1px solid #4facfe; color: #fff; padding: 8px; margin: 0 5px; border-radius: 5px; text-align: center; font-size: 1em; outline: none; }
+  .student-input:focus { border-color: #e94560; box-shadow: 0 0 8px rgba(233,69,96,0.5); }
+  .btn-checkin { background: #4facfe; color: #1a1a2e; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 1em; transition: 0.2s; }
+  .btn-checkin:hover { background: #00f2fe; transform: scale(1.05); }
+  #display-container { font-size: 1.3em; color: #00f2fe; font-weight: bold; text-shadow: 0 0 5px rgba(0,242,254,0.5); }
+
   /* 總計時器面板 */
   #global-timer-panel { background: rgba(0, 0, 0, 0.6); display: inline-block; padding: 10px 20px; border-radius: 30px; margin-top: 15px; border: 2px solid #4facfe; font-size: 1.2em; font-family: monospace; letter-spacing: 2px; }
   .btn-reset { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 0.8em; margin-left: 15px; }
@@ -32,6 +40,19 @@
 
   <header>
     <h1>🌌 直角坐標：終極逃脫任務</h1>
+    
+    <div id="student-section">
+      <div id="input-container">
+        <input type="text" id="stu-class" class="student-input" placeholder="班級 (例:701)" style="width: 100px;">
+        <input type="number" id="stu-seat" class="student-input" placeholder="座號" style="width: 60px;">
+        <input type="text" id="stu-name" class="student-input" placeholder="姓名" style="width: 120px;">
+        <button class="btn-checkin" onclick="saveStudent()">完成報到</button>
+      </div>
+      <div id="display-container" style="display:none;">
+        🎓 特務代號：<span id="stu-info-display"></span>
+      </div>
+    </div>
+
     <div id="global-timer-panel">
       ⏱️ 總耗時: <span id="total-time">00:00:00</span>
       <button class="btn-reset" onclick="resetAll()">重新開始任務</button>
@@ -74,6 +95,9 @@
 let globalTimerInterval;
 
 window.onload = () => {
+  // 檢查學生報到狀態
+  checkStudent();
+
   // 檢查解鎖狀態
   ['game1', 'game2', 'game3', 'game4', 'game5', 'game6'].forEach(gameId => {
     if (localStorage.getItem(gameId) === 'unlocked' || gameId === 'game1') {
@@ -90,7 +114,38 @@ window.onload = () => {
   }
 };
 
+// ★ 新增：檢查與儲存學生資料邏輯
+function checkStudent() {
+  let info = localStorage.getItem('studentInfo');
+  if (info) {
+    document.getElementById('input-container').style.display = 'none';
+    document.getElementById('display-container').style.display = 'block';
+    document.getElementById('stu-info-display').innerText = info;
+  }
+}
+
+function saveStudent() {
+  let c = document.getElementById('stu-class').value.trim();
+  let s = document.getElementById('stu-seat').value.trim();
+  let n = document.getElementById('stu-name').value.trim();
+  
+  if(!c || !s || !n) {
+    alert("⚠️ 請輸入完整的「班級、座號、姓名」才能進行報到！");
+    return;
+  }
+  
+  let info = `${c}班 ${s}號 ${n}`;
+  localStorage.setItem('studentInfo', info);
+  checkStudent();
+}
+
 function enterGame(gameId, targetUrl, correctKey) {
+  // ★ 新增防呆：必須先報到才能開始遊戲
+  if (!localStorage.getItem('studentInfo')) {
+    alert("⚠️ 系統鎖定中！請先在上方輸入班級、座號與姓名，點擊「完成報到」才能開始挑戰！");
+    return;
+  }
+
   // 第一關特別處理：點擊就開始總計時
   if (gameId === 'game1' && !localStorage.getItem('escapeStartTime')) {
     localStorage.setItem('escapeStartTime', Date.now());
@@ -144,7 +199,7 @@ function updateTimerDisplay() {
 }
 
 function resetAll() {
-  if(confirm("⚠️ 確定要清除所有紀錄與時間，重新開始挑戰嗎？")) {
+  if(confirm("⚠️ 確定要清除所有紀錄(包含身分與時間)，重新開始挑戰嗎？")) {
     localStorage.clear();
     location.reload();
   }
